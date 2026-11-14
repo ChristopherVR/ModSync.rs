@@ -1,0 +1,59 @@
+name: Drafter check
+# Optional gate. Drafts each pinned mod-builds guide again and compares the
+# drafts with the reviewed instruction set for that guide version, listed in
+# .github/reviewed-instructions.json. See docs/drafter-check.md.
+#
+# Off unless the repository variable RUN_DRAFTER_CHECK is 'true' (or the
+# workflow is started by hand). Drafts that differ from the reviewed set are
+# reported, not failed, unless DRAFTER_CHECK_STRICT is 'true'. A reviewed set
+# that is itself not clean always fails the job, but the job only blocks a
+# merge when DRAFTER_CHECK_REQUIRED is 'true'.
+on:
+  pull_request:
+    paths:
+      - src/draft.rs
+      - src/draft/**
+      - src/markdown.rs
+      - src/markdown/**
+      - .github/reviewed-instructions.json
+      - .github/workflows/drafter-check.yml
+      - tools/compare_drafts.py
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: Fail when a draft differs from the reviewed set
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drafts:
+    if: github.event_name == 'workflow_dispatch' || vars.RUN_DRAFTER_CHECK == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ vars.DRAFTER_CHECK_REQUIRED != 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.95.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libssl-dev
+      - run: cargo build --locked --no-default-features --bin modsync -j2
+      - name: Compare drafts with the reviewed sets
+        env:
+          STRICT: ${{ (inputs.strict || vars.DRAFTER_CHECK_STRICT == 'true') && '--strict' || '' }}
+        run: |
+          python3 tools/compare_drafts.py --binary target/debug/modsync \
+            --manifest .github/reviewed-instructions.json --output drafter-check $STRICT
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: drafter-check
+          path: drafter-check
+          if-no-files-found: ignore
