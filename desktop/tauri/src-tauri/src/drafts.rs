@@ -217,7 +217,9 @@ fn steps(component: &Component, options: &[Component], out: &mut Vec<String>, pr
 
 /// What the details of a mod say about steps the app drafted for it, or `None`
 /// when the mod's steps were written by the guide author.
-pub(crate) fn describe(component: &Component) -> Option<Value> {
+/// `checked` is whether a check has already tried to work the steps out from
+/// the mod's download.
+pub(crate) fn describe(component: &Component, checked: bool) -> Option<Value> {
     let needs_review = draft::requires_review(component);
     let record = component.metadata.get("DraftReview");
     if record.is_none() && !needs_review {
@@ -253,10 +255,20 @@ pub(crate) fn describe(component: &Component) -> Option<Value> {
         .and_then(|r| r.get("RejectedDrafts"))
         .and_then(Value::as_u64)
         .unwrap_or(0);
+    if waiting && checked {
+        open.insert(
+            0,
+            "The app could not work out exact steps from the download.".to_owned(),
+        );
+    }
+    let waiting = waiting && !checked;
     let mut drafted = Vec::new();
     steps(component, &component.options, &mut drafted, "");
     Some(json!({
         "needs_review": needs_review,
+        // Steps the app worked out from the download and confirmed by working
+        // them out again from the same file (`review_verified_drafts`).
+        "confirmed": !needs_review && record.is_some_and(|r| r.get("Verification").is_some()),
         "waiting_for_download": needs_review && waiting,
         "steps": drafted,
         "unclear": open,
@@ -280,7 +292,10 @@ pub fn show(app: &AppHandle, key: &str, guid: &str) -> crate::state::Reply {
         .iter()
         .find(|c| c.guid.eq_ignore_ascii_case(guid))
         .ok_or_else(|| crate::state::fail(404, "Unknown mod"))?;
-    Ok(json!({"draft": describe(component)}))
+    let checked = loaded
+        .checked
+        .contains(&component.guid.to_ascii_lowercase());
+    Ok(json!({"draft": describe(component, checked)}))
 }
 
 /// Approve the drafted steps of one mod, as ModSync's "Mark these
@@ -305,7 +320,7 @@ pub fn approve(app: &AppHandle, key: &str, guid: &str) -> crate::state::Reply {
             .and_then(|identity| draft::mark_reviewed(component).map(|()| identity))
             .map_err(|e| crate::state::fail(422, format!("{e:#}")))?;
         let name = component.name.clone();
-        let draft = describe(component);
+        let draft = describe(component, true);
         inner
             .ui
             .reviewed_drafts
@@ -345,26 +360,32 @@ pub(crate) fn apply_saved(app: &AppHandle, key: &str, guide: &mut Guide) {
     }
 }
 
-/// Give the open build the steps this run drafted from downloads, so the mod's
-/// details can show them for review. Mods that already had steps keep theirs.
-pub(crate) fn keep_for_review(app: &AppHandle, key: &str, guide: &Guide) {
+/// Give the open build the steps this run worked out from downloads, so the
+/// mod's details show them, and remember which mods the run tried.
+pub(crate) fn keep_for_review(app: &AppHandle, key: &str, before: &Guide, after: &Guide) {
     let st = state(app);
     let mut inner = st.lock();
     let Some(loaded) = inner.loaded.as_mut().filter(|l| l.key == key) else {
         return;
     };
-    for drafted in guide
-        .components
-        .iter()
-        .filter(|c| c.metadata.contains_key("DraftReview"))
-    {
-        if let Some(slot) = loaded.guide.components.iter_mut().find(|c| {
-            c.guid == drafted.guid
-                && c.instructions.is_empty()
-                && !c.metadata.contains_key("DraftReview")
-        }) {
+    for (old, new) in before.components.iter().zip(&after.components) {
+        if !new.is_selected || old.guid != new.guid {
+            continue;
+        }
+        loaded.checked.insert(new.guid.to_ascii_lowercase());
+        let changed = serde_json::to_value(old).ok() != serde_json::to_value(new).ok();
+        if let Some(slot) = changed
+            .then(|| {
+                loaded
+                    .guide
+                    .components
+                    .iter_mut()
+                    .find(|c| c.guid == new.guid)
+            })
+            .flatten()
+        {
             let selected = slot.is_selected;
-            *slot = drafted.clone();
+            *slot = new.clone();
             slot.is_selected = selected;
         }
     }

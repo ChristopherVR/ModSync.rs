@@ -146,6 +146,8 @@ export const en: Dict = {
   "modDetail.sourcePage": "Open mod page",
   "modDetail.draftWaitingTitle": "Install steps come from the download",
   "modDetail.draftWaitingExplain": "The guide only describes this mod in words. When you check or install, the app works out its steps from the downloaded files. Steps it cannot confirm exactly are shown here for you to review first.",
+  "modDetail.draftConfirmedTitle": "Install steps worked out from the download",
+  "modDetail.draftConfirmedExplain": "The guide only describes this mod in words, so the app worked out these steps from the downloaded files and confirmed them against the same files. If the mod's readme asks for anything more, do those parts by hand.",
   "modDetail.draftTitle": "Drafted install steps: please review",
   "modDetail.draftExplain": "The guide only describes this mod in words, so the app drafted these steps itself. Drafts can be wrong. Compare them with the guide's instructions and the mod's own readme before approving. The app will not install this mod until you do.",
   "modDetail.draftApprovedTitle": "Drafted install steps: approved",

@@ -445,9 +445,10 @@ fn run(app: &AppHandle, job: Job, tally: &mut Tally) -> Result<()> {
         return Ok(());
     }
     // 3. Steps for mods the build only describes, from their downloads.
+    let before = guide.clone();
     crate::drafts::complete(app, &mut guide, &mods, &cancelled);
     crate::drafts::apply_saved(app, &key, &mut guide);
-    crate::drafts::keep_for_review(app, &key, &guide);
+    crate::drafts::keep_for_review(app, &key, &before, &guide);
     if cancelled.load(Ordering::Acquire) {
         log(app, "Install stopped.", "warning");
         return Ok(());

@@ -28,6 +28,8 @@ pub struct Loaded {
     pub key: String,
     pub game: String,
     pub guide: Guide,
+    /// Mods (lowercase ids) a check has already tried to work out steps for.
+    pub checked: std::collections::BTreeSet<String>,
 }
 
 pub struct Inner {

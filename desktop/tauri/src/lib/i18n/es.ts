@@ -318,6 +318,8 @@ export const es: Dict = {
   "modDetail.sourcePage": "Abrir página del mod",
   "modDetail.draftWaitingTitle": "Los pasos de instalación salen de la descarga",
   "modDetail.draftWaitingExplain": "La guía solo describe este mod con palabras. Al comprobar o instalar, la app deduce los pasos a partir de los archivos descargados. Los pasos que no pueda confirmar con exactitud se muestran aquí para que los revises primero.",
+  "modDetail.draftConfirmedTitle": "Pasos de instalación deducidos de la descarga",
+  "modDetail.draftConfirmedExplain": "La guía solo describe este mod con palabras, así que la app dedujo estos pasos a partir de los archivos descargados y los confirmó con esos mismos archivos. Si el readme del mod pide algo más, haz esas partes a mano.",
   "modDetail.draftTitle": "Pasos de instalación redactados: revísalos",
   "modDetail.draftExplain": "La guía solo describe este mod con palabras, así que la app redactó estos pasos por su cuenta. Los borradores pueden estar mal. Compáralos con las instrucciones de la guía y el readme del mod antes de aprobarlos. La app no instalará este mod hasta que lo hagas.",
   "modDetail.draftApprovedTitle": "Pasos de instalación redactados: aprobados",

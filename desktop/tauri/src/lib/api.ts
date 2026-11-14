@@ -66,6 +66,8 @@ export interface BuildMod {
 /** Install steps the app drafted, which the player must check and approve. */
 export interface DraftSteps {
   needs_review: boolean;
+  /** Worked out from the download and confirmed against it by the app. */
+  confirmed: boolean;
   /** The steps depend on what is in the download; Check works them out. */
   waiting_for_download: boolean;
   steps: string[];

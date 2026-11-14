@@ -322,7 +322,7 @@ pub fn mod_json(
         "installed": installed,
         "options": options_json(&c.options),
         "aspyr_only": modsync::game::aspyr_exclusive(c),
-        "draft": crate::drafts::describe(c),
+        "draft": crate::drafts::describe(c, false),
         "dependencies": names(all, &c.dependencies),
         "restrictions": names(all, &c.restrictions),
     })
@@ -385,6 +385,7 @@ pub fn load(app: &AppHandle, key: &str, r: &Request) -> Reply {
         key: key.to_owned(),
         game: build.game,
         guide,
+        checked: BTreeSet::new(),
     });
     Ok(json!({"ok": true, "build_key": key, "from_cache": from_cache, "mods": mods}))
 }

@@ -318,6 +318,8 @@ export const de: Dict = {
   "modDetail.sourcePage": "Mod-Seite öffnen",
   "modDetail.draftWaitingTitle": "Installationsschritte kommen aus dem Download",
   "modDetail.draftWaitingExplain": "Die Anleitung beschreibt diesen Mod nur in Worten. Beim Prüfen oder Installieren ermittelt die App die Schritte aus den heruntergeladenen Dateien. Schritte, die sie nicht genau bestätigen kann, werden hier zuerst zur Prüfung angezeigt.",
+  "modDetail.draftConfirmedTitle": "Installationsschritte aus dem Download ermittelt",
+  "modDetail.draftConfirmedExplain": "Die Anleitung beschreibt diesen Mod nur in Worten, daher hat die App diese Schritte aus den heruntergeladenen Dateien ermittelt und mit denselben Dateien bestätigt. Verlangt die Readme des Mods mehr, erledige diese Teile von Hand.",
   "modDetail.draftTitle": "Entworfene Installationsschritte: bitte prüfen",
   "modDetail.draftExplain": "Die Anleitung beschreibt diesen Mod nur in Worten, daher hat die App diese Schritte selbst entworfen. Entwürfe können falsch sein. Vergleiche sie vor der Freigabe mit der Anleitung und der Readme des Mods. Bis dahin installiert die App diesen Mod nicht.",
   "modDetail.draftApprovedTitle": "Entworfene Installationsschritte: freigegeben",

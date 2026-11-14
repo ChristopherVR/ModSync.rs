@@ -275,10 +275,10 @@ function DraftReview({ draft, approving, error, onApprove }: {
       : "rounded-md border p-3"}>
       <h3 className={`mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${open ? "text-[hsl(var(--warning))]" : "text-muted-foreground"}`}>
         {open ? <AlertTriangle className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
-        {open ? t("modDetail.draftTitle") : t("modDetail.draftApprovedTitle")}
+        {open ? t("modDetail.draftTitle") : draft.confirmed ? t("modDetail.draftConfirmedTitle") : t("modDetail.draftApprovedTitle")}
       </h3>
       <p className="text-sm leading-relaxed text-foreground">
-        {open ? t("modDetail.draftExplain") : t("modDetail.draftApprovedExplain")}
+        {open ? t("modDetail.draftExplain") : draft.confirmed ? t("modDetail.draftConfirmedExplain") : t("modDetail.draftApprovedExplain")}
       </p>
       {draft.steps.length > 0 ? (
         <ol className="mt-2 list-decimal space-y-0.5 pl-5 font-mono text-xs text-muted-foreground">
