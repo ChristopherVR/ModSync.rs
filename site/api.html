@@ -3,13 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Library API - ModSync</title>
+<title>Library API - ModSync | Kolto Labs</title>
 <meta name="description" content="Guide to the modsync Rust library: load and validate guides, choose components, install with progress and cancellation, restore, convert, download and manage profiles." />
-<meta name="theme-color" content="#14110d" />
+<meta name="theme-color" content="#03131c" />
 <link rel="icon" href="assets/modsync.svg" type="image/svg+xml" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<link rel="preload" href="assets/fonts/departure-mono.woff2" as="font" type="font/woff2" crossorigin />
 <script src="assets/theme-init.js"></script>
 <link rel="stylesheet" href="assets/site.css" />
 <script src="assets/site.js" defer></script>
@@ -18,6 +16,7 @@
 <a class="skip" href="#content">Skip to content</a>
 <div class="docs">
 <aside class="docs-side">
+  <a class="lab-link" href="https://koltolabs.bodecloud.workers.dev/"><img src="assets/kolto-labs.svg" alt="" width="22" height="22" />Kolto Labs</a>
   <div class="docs-side-top">
     <a class="docs-brand" href="./" aria-label="ModSync home"><img class="logo" src="assets/modsync.svg" alt="" width="22" height="22" />ModSync <span>docs</span></a>
     <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch appearance">
@@ -41,7 +40,7 @@
 <div class="docs-main">
 <main class="docs-article" id="content">
 <p class="crumb"><a href="./">ModSync</a><span>/</span>For developers<span>/</span><strong>Library API</strong></p>
-<h1>Library <span class="serif">API</span></h1>
+<h1>Library API</h1>
 <p class="lead">The <code>modsync</code> crate contains the engine behind the desktop app and the <code>modsync</code> command. Use it to build your own installer, guide checker or guide tool. The examples here call the same public functions the command line calls.</p>
 
 <section id="build">
@@ -337,7 +336,7 @@ let settings = Settings::new(&amp;mods, &amp;game)?;</code></pre>
 <nav class="pager" aria-label="Previous and next page"><a class="prev" href="cli-reference.html"><small>Previous</small>CLI reference</a><a class="next" href="status.html"><small>Next</small>Features and roadmap</a></nav>
 </main>
 <nav class="docs-outline" aria-label="On this page"><h2>On this page</h2><a href="#build">Adding the dependency</a><a href="#layout">Crate layout</a><a href="#load">Loading a guide</a><a href="#choose">Choosing components and options</a><a href="#validate">Validating without touching files</a><a href="#install">Installing with progress and cancellation</a><a href="#restore">Restoring after a failure</a><a href="#pause">Pausing and resuming</a><a href="#import">Importing a loose archive</a><a href="#convert">Converting between formats</a><a href="#download">Downloading archives</a><a href="#errors">Errors</a><a href="#safety">Safety rules every caller must keep</a></nav>
-<footer class="docs-foot"><span>ModSync. Made for the KOTOR modding community.</span><span><a data-repo="/issues" href="https://github.com/kolto-labs/ModSync.rs/issues">Report a problem</a></span></footer>
+<footer class="docs-foot"><span>ModSync / <a href="https://koltolabs.bodecloud.workers.dev/">Kolto Labs</a>. Built for the KotOR modding community.</span><span><a data-repo="/issues" href="https://github.com/kolto-labs/ModSync.rs/issues">Report a problem</a></span></footer>
 </div>
 </div>
 </body>

@@ -14,11 +14,10 @@ for (const node of document.querySelectorAll('[data-repo-url]')) {
   node.textContent = REPO_URL + (node.dataset.repoUrl || '');
 }
 
-// Appearance: follows the system until the reader picks light or dark, then remembers it.
+// Appearance: the lab palette is the default; remember an explicit reading-mode choice.
 const root = document.documentElement;
-const darkQuery = matchMedia('(prefers-color-scheme: dark)');
 const toggles = document.querySelectorAll('[data-theme-toggle]');
-const current = () => root.dataset.theme || (darkQuery.matches ? 'dark' : 'light');
+const current = () => root.dataset.theme || 'dark';
 function syncToggles() {
   const dark = current() === 'dark';
   for (const button of toggles) {
@@ -37,7 +36,6 @@ for (const button of toggles) {
     syncToggles();
   });
 }
-darkQuery.addEventListener('change', syncToggles);
 syncToggles();
 requestAnimationFrame(() => root.classList.add('theme-anim'));
 

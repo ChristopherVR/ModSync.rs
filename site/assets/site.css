@@ -1,106 +1,86 @@
-/* ModSync.rs site.
-   Colours and type follow the KOTOR Mod Manager site (warm dark canvas, ember accent,
-   Instrument Sans with an Instrument Serif italic for emphasis). The docs frame follows the
-   OOXML documentation hub (a sidebar of pages, the article, an outline that tracks the
-   section in view, hairline-joined grids, framed tables, code on a dark card). */
+/* Kolto Labs identity: Departure Mono headings, IBM Plex reading text,
+   deep-blue instrument panels and cyan/gold controls. Fonts are served locally;
+   licenses and provenance are in assets/fonts/. */
+@font-face {
+  font-family: 'Departure Mono'; src: url('fonts/departure-mono.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Sans'; src: url('fonts/ibm-plex-sans-regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Sans'; src: url('fonts/ibm-plex-sans-semibold.woff2') format('woff2');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono'; src: url('fonts/ibm-plex-mono.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
 
-/* ---------- tokens ---------- */
+/* Dark by default, with an explicit light reading mode. */
 :root {
-  --font-ui: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-  --font-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
-  --font-mono: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, Menlo, monospace;
-  --radius: 4px;
-  --radius-panel: 8px;
+  --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Departure Mono', 'IBM Plex Mono', ui-monospace, monospace;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  --radius: 0px;
+  --radius-panel: 0px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --fast: 0.2s;
   --open: 0.32s;
-  --enter: 0.65s;
-  --side-w: 272px;
-  --gutter: clamp(16px, 5vw, 56px);
-  --max: 1120px;
-
-  /* Light: a warm parchment version of the same palette. */
-  color-scheme: light;
-  --canvas: #f5f0e6;
-  --surface: #fffcf6;
-  --rail: #efe8db;
-  --sunken: #e9e1d2;
-  --line: #e0d6c4;
-  --line-strong: #c9bda7;
-  --ink: #1e1a14;
-  --text: #2b251d;
-  --muted: #655c4f;
-  --faint: #8a8070;
-  --accent: #b4532c;
-  --accent-ink: #9f4723;
-  --accent-fg: #ffffff;
-  --selected: #f4e2d5;
-  --hover: #ebe3d4;
-  --glow: rgba(180, 83, 44, 0.14);
-  --star: rgba(43, 37, 29, 0.22);
-  --ok: #2f7a4f;
-  --warn: #8a5a00;
-  --code-bg: #17130e;
-  --code-fg: #ede8df;
-  --code-muted: #a39a8c;
-  --code-line: #2c261e;
-}
-
-/* Dark: the KOTOR Mod Manager palette. Used when the system asks for dark and the reader
-   has not picked light, or whenever the reader picks dark. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --canvas: #14110d;
-    --surface: #1b1813;
-    --rail: #17140f;
-    --sunken: #0f0d0a;
-    --line: #2d2821;
-    --line-strong: #40392f;
-    --ink: #f4efe6;
-    --text: #ede8df;
-    --muted: #a39a8c;
-    --faint: #7f7669;
-    --accent: #d9714a;
-    --accent-ink: #ec8d66;
-    --accent-fg: #14110d;
-    --selected: #2b1f17;
-    --hover: #231f19;
-    --glow: rgba(217, 113, 74, 0.16);
-    --star: rgba(237, 232, 223, 0.5);
-    --ok: #6fc28f;
-    --warn: #e2b04f;
-    --code-bg: #0e0c09;
-    --code-fg: #ede8df;
-    --code-muted: #8f877b;
-    --code-line: #2d2821;
-  }
-}
-:root[data-theme='dark'] {
+  --side-w: 288px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --max: 1200px;
   color-scheme: dark;
-  --canvas: #14110d;
-  --surface: #1b1813;
-  --rail: #17140f;
-  --sunken: #0f0d0a;
-  --line: #2d2821;
-  --line-strong: #40392f;
-  --ink: #f4efe6;
-  --text: #ede8df;
-  --muted: #a39a8c;
-  --faint: #7f7669;
-  --accent: #d9714a;
-  --accent-ink: #ec8d66;
-  --accent-fg: #14110d;
-  --selected: #2b1f17;
-  --hover: #231f19;
-  --glow: rgba(217, 113, 74, 0.16);
-  --star: rgba(237, 232, 223, 0.5);
-  --ok: #6fc28f;
-  --warn: #e2b04f;
-  --code-bg: #0e0c09;
-  --code-fg: #ede8df;
-  --code-muted: #8f877b;
-  --code-line: #2d2821;
+  --canvas: #03131c;
+  --surface: #072130;
+  --rail: #072130;
+  --sunken: #021018;
+  --line: #215a73;
+  --line-strong: #3d6f84;
+  --ink: #eefbfd;
+  --text: #cfe6ec;
+  --muted: #a2bdc8;
+  --faint: #86a8b5;
+  --accent: #4fe3ee;
+  --accent-ink: #8fd3ff;
+  --accent-fg: #02262c;
+  --selected: #0a3445;
+  --hover: #0a2a3b;
+  --glow: rgb(79 227 238 / 12%);
+  --star: #86a8b5;
+  --ok: #6ff5b0;
+  --warn: #f5c95c;
+  --action: #f5c95c;
+  --action-ink: #29200a;
+  --code-bg: #021018;
+  --code-fg: #cfe6ec;
+  --code-muted: #86a8b5;
+  --code-line: #215a73;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --canvas: #edf5f8;
+  --surface: #ffffff;
+  --rail: #e0edf2;
+  --sunken: #dcebf1;
+  --line: #9ab7c6;
+  --line-strong: #5a8195;
+  --ink: #072130;
+  --text: #173b4b;
+  --muted: #3e6274;
+  --faint: #496c7d;
+  --accent: #076b7c;
+  --accent-ink: #075d87;
+  --accent-fg: #ffffff;
+  --selected: #cce8ef;
+  --hover: #d8eaf1;
+  --glow: rgb(7 107 124 / 12%);
+  --star: #496c7d;
+  --ok: #1c704c;
+  --warn: #7a4d00;
+  --action: #f5c95c;
+  --action-ink: #29200a;
 }
 
 /* ---------- base ---------- */
@@ -135,15 +115,10 @@ h1,
 h2,
 h3 {
   color: var(--ink);
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  margin: 0;
-}
-.serif {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-weight: 400;
-  font-style: italic;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
+  margin: 0;
 }
 code,
 kbd {
@@ -195,7 +170,7 @@ kbd {
   width: 22px;
   height: 22px;
   flex: none;
-  border-radius: 5px;
+  image-rendering: pixelated;
 }
 .icon-btn {
   width: 36px;
@@ -297,10 +272,10 @@ pre.code .c {
   color: var(--code-muted);
 }
 pre.code .k {
-  color: #ec8d66;
+  color: #ffab5c;
 }
 pre.code .s {
-  color: #c8d6a0;
+  color: #6ff5b0;
 }
 pre.code[data-lang]::before {
   content: attr(data-lang);
@@ -375,7 +350,7 @@ pre.code .copy:hover {
   white-space: nowrap;
 }
 
-/* ---------- home page: laid out like a mod's page on a mod site ---------- */
+/* ---------- ModSync project page ---------- */
 .wrap {
   max-width: var(--max);
   margin: 0 auto;
@@ -385,9 +360,9 @@ pre.code .copy:hover {
   position: sticky;
   top: 0;
   z-index: 20;
+  border-top: 2px solid var(--accent);
   border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--canvas) 88%, transparent);
-  backdrop-filter: blur(8px);
+  background: var(--surface);
 }
 .mp-top .wrap {
   display: flex;
@@ -400,9 +375,7 @@ pre.code .copy:hover {
   align-items: center;
   gap: 10px;
   color: var(--ink);
-  font-weight: 600;
-  font-size: 16px;
-  letter-spacing: -0.01em;
+  font: 400 15px/1.5 var(--font-display);
   text-decoration: none;
 }
 .mp-top nav {
@@ -412,10 +385,9 @@ pre.code .copy:hover {
   margin-left: auto;
 }
 .mp-top nav a {
-  padding: 6px 10px;
-  border-radius: var(--radius);
+  padding: 8px 10px;
   color: var(--muted);
-  font-size: 14px;
+  font: 400 11px/1.5 var(--font-display);
   text-decoration: none;
 }
 .mp-top nav a:hover {
@@ -424,43 +396,37 @@ pre.code .copy:hover {
 }
 
 .mp {
-  padding-top: 36px;
+  padding-top: 0;
   padding-bottom: 64px;
 }
 
 /* Title block */
 .mp-head {
-  margin-bottom: 20px;
+  position: relative;
+  padding: 56px 0 44px;
+  margin-bottom: 32px;
+  border-bottom: 1px solid var(--line);
 }
 .mp-crumbs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 10px;
-  padding: 0;
-}
-.mp-crumbs span {
-  padding: 2px 8px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  margin: 0 0 24px;
+  color: var(--accent);
+  font: 400 11px/1.7 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .mp-head h1 {
   margin: 0;
-  color: var(--ink);
-  font-size: clamp(30px, 4vw, 40px);
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  color: var(--accent);
+  font: 400 clamp(44px, 7vw, 77px)/1.15 var(--font-display);
+  letter-spacing: -0.04em;
+  text-shadow: 3px 3px 0 var(--selected);
 }
 .mp-tagline {
-  max-width: 60ch;
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 17px;
+  max-width: 61ch;
+  margin: 16px 0 0;
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.6;
 }
 
 /* Gallery and side column */
@@ -473,10 +439,9 @@ pre.code .copy:hover {
 .mp-stage {
   margin: 0;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
-  background: #0f0d0a;
-  aspect-ratio: 1000 / 628;
+  border: 1px solid var(--line-strong);
+  background: var(--sunken);
+  aspect-ratio: 1360 / 880;
 }
 .mp-stage img {
   display: block;
@@ -502,12 +467,11 @@ pre.code .copy:hover {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 1000 / 628;
+  aspect-ratio: 1360 / 880;
   object-fit: cover;
   object-position: top left;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  opacity: 0.7;
+  opacity: 0.75;
   transition: opacity var(--fast) var(--ease), border-color var(--fast) var(--ease);
 }
 .mp-thumbs span {
@@ -533,8 +497,8 @@ pre.code .copy:hover {
 
 .card {
   border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
   background: var(--surface);
+  box-shadow: inset 0 1px 0 var(--line-strong);
 }
 .mp-side {
   display: grid;
@@ -548,16 +512,14 @@ pre.code .copy:hover {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 40px;
-  padding: 0 18px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--accent-fg);
-  font-weight: 600;
-  font-size: 14px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--action);
+  background: var(--action);
+  color: var(--action-ink);
+  box-shadow: inset 1px 1px 0 rgb(255 255 255 / 40%);
+  font: 400 11px/1.7 var(--font-display);
   text-decoration: none;
-  white-space: nowrap;
 }
 .btn:hover {
   filter: brightness(1.08);
@@ -569,7 +531,7 @@ pre.code .copy:hover {
 .btn.big {
   width: 100%;
   min-height: 46px;
-  font-size: 15px;
+  font-size: 11px;
 }
 .btn.big svg {
   width: 15px;
@@ -661,19 +623,15 @@ pre.code .copy:hover {
   padding-top: 28px;
 }
 .mp-body h2 {
-  margin: 0 0 12px;
+  margin: 0 0 20px;
   color: var(--ink);
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font: 400 22px/1.5 var(--font-display);
+  overflow-wrap: anywhere;
 }
 .mp-body h3 {
-  margin: 28px 0 12px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  margin: 28px 0 16px;
+  color: var(--accent);
+  font: 400 11px/1.8 var(--font-display);
 }
 .mp-body p {
   margin: 0 0 12px;
@@ -712,17 +670,11 @@ pre.code .copy:hover {
   counter-increment: step;
 }
 .mp-body .steps li::before {
-  content: counter(step);
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  margin-bottom: 10px;
-  border-radius: 50%;
-  background: var(--selected);
-  color: var(--accent-ink);
-  font-size: 13px;
-  font-weight: 600;
+  content: "0" counter(step);
+  display: block;
+  margin-bottom: 12px;
+  color: var(--accent);
+  font: 400 22px/1.5 var(--font-display);
 }
 .mp-body .steps b {
   display: block;
@@ -820,7 +772,7 @@ pre.code .copy:hover {
   }
 }
 
-/* ---------- docs frame (from the OOXML documentation hub) ---------- */
+/* ---------- documentation frame ---------- */
 .docs {
   display: grid;
   grid-template-columns: var(--side-w) minmax(0, 1fr);
@@ -835,6 +787,7 @@ pre.code .copy:hover {
   gap: 12px;
   padding: 14px 12px 0;
   background: var(--rail);
+  border-top: 2px solid var(--accent);
   border-right: 1px solid var(--line);
 }
 .docs-side-top {
@@ -849,8 +802,7 @@ pre.code .copy:hover {
   gap: 9px;
   margin-right: auto;
   color: var(--ink);
-  font-size: 15px;
-  font-weight: 600;
+  font: 400 13px/1.5 var(--font-display);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -957,12 +909,9 @@ pre.code .copy:hover {
   color: var(--faint);
 }
 .docs-article h1 {
-  font-size: clamp(32px, 4.4vw, 44px);
-  line-height: 1.08;
-  letter-spacing: -0.03em;
-}
-.docs-article h1 .serif {
-  color: var(--accent-ink);
+  font: 400 clamp(22px, 3vw, 33px)/1.45 var(--font-display);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 .docs-article .lead {
   margin: 14px 0 0;
@@ -978,20 +927,17 @@ pre.code .copy:hover {
   margin-top: clamp(40px, 6vw, 56px);
 }
 .docs-article h2 {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
   padding-bottom: 12px;
   margin-bottom: 16px;
   border-bottom: 1px solid var(--line);
-  font-size: 24px;
-  line-height: 1.2;
+  color: var(--ink);
+  font: 400 22px/1.5 var(--font-display);
+  overflow-wrap: anywhere;
 }
 .docs-article h3 {
   margin: 28px 0 8px;
-  font-size: 18px;
-  line-height: 1.3;
+  color: var(--ink);
+  font: 600 18px/1.5 var(--font-ui);
 }
 .docs-article p,
 .docs-article li {
@@ -1230,30 +1176,11 @@ details.faq > div {
   html {
     scroll-behavior: smooth;
   }
-  .docs-article > :is(.crumb, h1, .lead) {
-    animation: rise var(--enter) var(--ease) both;
-  }
-  .docs-article > h1 {
-    animation-delay: 0.08s;
-  }
-  .docs-article > .lead {
-    animation-delay: 0.16s;
-  }
   html.theme-anim :is(body, .docs-side, .panel, .table, .note, .mp-top) {
     transition:
       background-color var(--open) var(--ease),
       color var(--open) var(--ease),
       border-color var(--open) var(--ease);
-  }
-  @keyframes rise {
-    from {
-      opacity: 0;
-      transform: translateY(16px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
   }
 }
 
@@ -1261,3 +1188,67 @@ details.faq > div {
 .docs-article figure.shot { margin: 1.25rem 0 1.5rem; }
 .docs-article figure.shot img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius-panel); }
 .docs-article figure.shot figcaption { margin-top: .5rem; font-size: .875rem; color: var(--muted); }
+
+/* Kolto Labs project identity. Decoration stays outside reading surfaces. */
+.project-name {
+  color: var(--muted);
+  font: 400 11px/1.5 var(--font-display);
+}
+.mp-deck {
+  margin: 20px 0 0;
+  color: var(--ink);
+  font: 400 clamp(22px, 3vw, 33px)/1.5 var(--font-display);
+}
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+.btn.secondary {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+.hero-note {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.section-label {
+  margin: 0 0 20px;
+  color: var(--ink);
+  font: 400 22px/1.5 var(--font-display);
+}
+.lab-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--accent-ink);
+  font: 400 11px/1.5 var(--font-display);
+  text-decoration: none;
+}
+.foot-brand { max-width: 64ch; }
+.foot-brand > a {
+  margin: 0;
+  color: var(--accent-ink);
+  font: 400 15px/1.5 var(--font-display);
+}
+.foot-brand p { margin: 10px 0 0; }
+.foot-legal { max-width: 64ch; }
+@media (max-width: 820px) {
+  .docs-side .lab-link { display: none; }
+}
+@media (max-width: 600px) {
+  .mp-head { padding: 32px 0; }
+  .mp-top .wrap { gap: 8px; }
+  .mp-top nav a { padding-inline: 8px; }
+  .mark { font-size: 11px; gap: 6px; }
+  .project-name { display: none; }
+  .section-label, .mp-body h2 { font-size: 17px; }
+  .mp-top nav a[data-repo] { display: none; }
+  .hero-actions .btn { flex: 1 1 auto; }
+}

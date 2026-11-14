@@ -1,6 +1,8 @@
 # ModSync
 
-A desktop app and command line tool that installs KOTOR and KOTOR 2 mod builds from ModSync instruction files: the mods you pick, in the order the guide sets, with a check before anything changes and a snapshot to restore from. The desktop app and the CLI share one engine for selection, validation, archives and installation.
+Your build. In order.
+
+ModSync is a [Kolto Labs](https://koltolabs.bodecloud.workers.dev/) tool for installing Knights of the Old Republic I and II mod builds. Bring your own game, choose your mods, and follow the guide's install order, with a check before anything changes and a snapshot to restore from. The desktop app and command line share one engine for selection, validation, archives and installation. ModSync contains no mods or game files.
 
 **Website and documentation: https://kolto-labs.github.io/ModSync.rs/**
 
