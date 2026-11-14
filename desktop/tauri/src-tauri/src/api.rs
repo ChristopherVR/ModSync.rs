@@ -129,6 +129,8 @@ fn route(app: &AppHandle, r: &Request) -> Reply {
         (["api", "builds", key], "DELETE") => crate::builds::delete(app, key),
         (["api", "builds", key, "load"], _) => crate::builds::load(app, key, r),
         (["api", "builds", key, "option"], _) if post => crate::builds::set_option(app, key, r),
+        (["api", "builds", key, "draft", guid], "GET") => crate::drafts::show(app, key, guid),
+        (["api", "builds", key, "draft", guid], "POST") => crate::drafts::approve(app, key, guid),
         (["api", "library", ..], _) | (["api", "conflicts", ..], _) | (["api", "cache", ..], _) => {
             crate::library::route(app, r, &s)
         }

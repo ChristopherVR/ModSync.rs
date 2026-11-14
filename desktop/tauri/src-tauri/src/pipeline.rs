@@ -59,6 +59,8 @@ pub fn control(app: &AppHandle, action: &str) -> Reply {
 }
 
 struct Job {
+    /// The build the guide was loaded from.
+    key: String,
     guide: Guide,
     selected: Vec<String>,
     game: PathBuf,
@@ -198,6 +200,7 @@ fn prepare(app: &AppHandle, r: &Request, check_only: bool) -> Result<(Job, Strin
     };
     let inner = st.lock();
     let job = Job {
+        key,
         guide,
         selected,
         game: PathBuf::from(&path),
@@ -357,6 +360,7 @@ fn name_of(guide: &Guide, id: &str) -> String {
 
 fn run(app: &AppHandle, job: Job, tally: &mut Tally) -> Result<()> {
     let Job {
+        key,
         mut guide,
         selected,
         game,
@@ -442,6 +446,8 @@ fn run(app: &AppHandle, job: Job, tally: &mut Tally) -> Result<()> {
     }
     // 3. Steps for mods the build only describes, from their downloads.
     crate::drafts::complete(app, &mut guide, &mods, &cancelled);
+    crate::drafts::apply_saved(app, &key, &mut guide);
+    crate::drafts::keep_for_review(app, &key, &guide);
     if cancelled.load(Ordering::Acquire) {
         log(app, "Install stopped.", "warning");
         return Ok(());
@@ -529,14 +535,26 @@ pub(crate) fn check_and_install(
                     .or_insert_with(|| issue.message.clone());
             }
         }
-        let mut unknown = 0;
+        let (mut unknown, mut unreviewed) = (0, 0);
         for (id, message) in &failed {
-            if needs_steps(message) {
+            if needs_review(message) {
+                unreviewed += 1;
+                status(app, id, "ERROR", "Error", NEEDS_REVIEW);
+            } else if needs_steps(message) {
                 unknown += 1;
                 status(app, id, "ERROR", "Error", NEEDS_STEPS);
             } else {
                 status(app, id, "ERROR", "Error", message);
             }
+        }
+        if unreviewed > 0 {
+            log(
+                app,
+                format!(
+                    "{unreviewed} mod(s) have install steps the app drafted. Drafts can be wrong: open each mod's details, check its steps and approve them, then check again."
+                ),
+                "warning",
+            );
         }
         if unknown > 0 {
             log(
@@ -672,9 +690,15 @@ fn conflicts(app: &AppHandle, settings: &Settings, case_insensitive: bool, prepa
 /// or still an unconfirmed draft.
 const NEEDS_STEPS: &str = "Needs install steps: the app could not confirm how to install this mod from its download. Install it by hand, or leave it out and check again.";
 
+/// Shown on a mod whose steps the app drafted and the player has not approved.
+const NEEDS_REVIEW: &str = "Needs your review: the app drafted this mod's install steps, and drafts can be wrong. Open its details, check the steps and approve them, or install it by hand.";
+
 fn needs_steps(message: &str) -> bool {
     message.ends_with("has no executable instructions; review the guide")
-        || message.ends_with("has unreviewed draft instructions; review them before installation")
+}
+
+fn needs_review(message: &str) -> bool {
+    message.ends_with("has unreviewed draft instructions; review them before installation")
 }
 
 fn rebuild_settings(

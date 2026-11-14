@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { X, ExternalLink, Loader2, AlertTriangle } from "lucide-react";
-import { api, type BuildMod, type ModInfo, type ModOption } from "@/lib/api";
+import { X, ExternalLink, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { api, type BuildMod, type DraftSteps, type ModInfo, type ModOption } from "@/lib/api";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,29 @@ export function BuildModDetail({ mod, onClose, error }: BuildModDetailProps) {
   useEffect(() => { setOptions(mod.options ?? []); }, [mod]);
   const toggleOption = (o: ModOption, selected: boolean) => {
     api.setOption(mod.build_key, o.guid, selected).then((r) => setOptions(r.options)).catch(() => {});
+  };
+
+  // Steps the app drafted for this mod. Asked for again on open, because a
+  // check can draft steps from the downloads after the list was loaded.
+  const [draft, setDraft] = useState<DraftSteps | null>(mod.draft ?? null);
+  const [draftError, setDraftError] = useState("");
+  const [approving, setApproving] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setDraft(mod.draft ?? null);
+    setDraftError("");
+    api.draft(mod.build_key, mod.file_id)
+      .then((r) => { if (alive) setDraft(r.draft); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [mod]);
+  const approve = () => {
+    setApproving(true);
+    setDraftError("");
+    api.approveDraft(mod.build_key, mod.file_id)
+      .then((r) => setDraft(r.draft))
+      .catch((e) => setDraftError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setApproving(false));
   };
 
   const title = info?.title?.trim() || mod.name;
@@ -134,6 +157,9 @@ export function BuildModDetail({ mod, onClose, error }: BuildModDetailProps) {
             </section>
           )}
 
+          {/* Steps the app drafted, which the player checks and approves */}
+          {draft && <DraftReview draft={draft} approving={approving} error={draftError} onApprove={approve} />}
+
           {/* Install instructions straight from the build guide */}
           {/* Choices inside the mod */}
           {options.length > 0 && (
@@ -220,6 +246,66 @@ export function BuildModDetail({ mod, onClose, error }: BuildModDetailProps) {
         </div>
       </aside>
     </div>
+  );
+}
+
+function DraftReview({ draft, approving, error, onApprove }: {
+  draft: DraftSteps; approving: boolean; error: string; onApprove: () => void;
+}) {
+  const t = useT();
+  const open = draft.needs_review;
+  if (draft.waiting_for_download) {
+    return (
+      <section className="rounded-md border border-[hsl(var(--info)/0.4)] bg-[hsl(var(--info)/0.08)] p-3">
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--info))]">
+          {t("modDetail.draftWaitingTitle")}
+        </h3>
+        <p className="text-sm leading-relaxed text-foreground">{t("modDetail.draftWaitingExplain")}</p>
+        {draft.steps.length > 0 && (
+          <ol className="mt-2 list-decimal space-y-0.5 pl-5 font-mono text-xs text-muted-foreground">
+            {draft.steps.map((s, i) => <li key={i} className="break-words">{s}</li>)}
+          </ol>
+        )}
+      </section>
+    );
+  }
+  return (
+    <section className={open
+      ? "rounded-md border border-[hsl(var(--warning)/0.4)] bg-[hsl(var(--warning)/0.08)] p-3"
+      : "rounded-md border p-3"}>
+      <h3 className={`mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${open ? "text-[hsl(var(--warning))]" : "text-muted-foreground"}`}>
+        {open ? <AlertTriangle className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
+        {open ? t("modDetail.draftTitle") : t("modDetail.draftApprovedTitle")}
+      </h3>
+      <p className="text-sm leading-relaxed text-foreground">
+        {open ? t("modDetail.draftExplain") : t("modDetail.draftApprovedExplain")}
+      </p>
+      {draft.steps.length > 0 ? (
+        <ol className="mt-2 list-decimal space-y-0.5 pl-5 font-mono text-xs text-muted-foreground">
+          {draft.steps.map((s, i) => <li key={i} className="break-words">{s}</li>)}
+        </ol>
+      ) : (
+        <p className="mt-2 text-sm italic text-muted-foreground">{t("modDetail.draftNoSteps")}</p>
+      )}
+      {(draft.unclear.length > 0 || draft.rejected > 0) && (
+        <div className="mt-2">
+          <p className="text-sm font-medium text-foreground">{t("modDetail.draftUnclear")}</p>
+          <ul className="list-disc space-y-0.5 pl-5 text-xs text-muted-foreground">
+            {draft.unclear.map((u, i) => <li key={i} className="break-words">{u}</li>)}
+            {draft.rejected > 0 && <li>{t("modDetail.draftRejected", { count: String(draft.rejected) })}</li>}
+          </ul>
+        </div>
+      )}
+      {open && draft.can_approve && (
+        <Button className="mt-3" size="sm" variant="outline" disabled={approving} onClick={onApprove}>
+          {approving ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} {t("modDetail.draftApprove")}
+        </Button>
+      )}
+      {open && !draft.can_approve && (
+        <p className="mt-2 text-sm text-muted-foreground">{t("modDetail.draftCannotApprove")}</p>
+      )}
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+    </section>
   );
 }
 

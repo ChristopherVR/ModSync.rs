@@ -144,6 +144,17 @@ export const en: Dict = {
   "builds.refreshHint": "Check the build guide for the latest mod list.",
   "builds.manualDownloadHint": "Download from {source}, place the archive in this mod’s download folder, then retry.",
   "modDetail.sourcePage": "Open mod page",
+  "modDetail.draftWaitingTitle": "Install steps come from the download",
+  "modDetail.draftWaitingExplain": "The guide only describes this mod in words. When you check or install, the app works out its steps from the downloaded files. Steps it cannot confirm exactly are shown here for you to review first.",
+  "modDetail.draftTitle": "Drafted install steps: please review",
+  "modDetail.draftExplain": "The guide only describes this mod in words, so the app drafted these steps itself. Drafts can be wrong. Compare them with the guide's instructions and the mod's own readme before approving. The app will not install this mod until you do.",
+  "modDetail.draftApprovedTitle": "Drafted install steps: approved",
+  "modDetail.draftApprovedExplain": "You approved these drafted steps. If the guide or the download changes, the app drafts them again and asks you to review them again.",
+  "modDetail.draftNoSteps": "No steps could be drafted.",
+  "modDetail.draftUnclear": "Parts of the guide the app could not turn into steps:",
+  "modDetail.draftRejected": "{count} drafted step(s) were left out because their file paths were not safe to use.",
+  "modDetail.draftApprove": "I checked these steps, approve them",
+  "modDetail.draftCannotApprove": "These steps cannot be approved as they are. Install this mod by hand, or leave it out.",
   "modDetail.guideWarnings": "Compatibility notes",
 
   // Library view

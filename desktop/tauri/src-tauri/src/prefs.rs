@@ -47,6 +47,10 @@ pub struct UiPrefs {
     pub max_expanded_gb: String,
     /// Mods installed with Import, by lowercase id: the archive they came from.
     pub imported_mods: BTreeMap<String, String>,
+    /// Drafted install steps the player approved, by build and lowercase mod
+    /// id: the engine's identity of the steps they saw. An approval only comes
+    /// back when the steps are drafted exactly the same again.
+    pub reviewed_drafts: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 pub struct Prefs {

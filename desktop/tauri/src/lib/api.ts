@@ -56,9 +56,23 @@ export interface BuildMod {
   aspyr_only?: boolean;
   /** Choices inside the mod, as the guide defines them. */
   options?: ModOption[];
+  /** Install steps the app drafted for this mod, when it did. */
+  draft?: DraftSteps | null;
   /** Other mods this one needs, and mods it cannot be combined with. */
   dependencies?: string[];
   restrictions?: string[];
+}
+
+/** Install steps the app drafted, which the player must check and approve. */
+export interface DraftSteps {
+  needs_review: boolean;
+  /** The steps depend on what is in the download; Check works them out. */
+  waiting_for_download: boolean;
+  steps: string[];
+  /** Parts of the guide's text the drafter could not turn into a step. */
+  unclear: string[];
+  rejected: number;
+  can_approve: boolean;
 }
 
 export interface ModOption {
@@ -243,6 +257,13 @@ export const api = {
     req<{ ok: boolean; build: BuildInfo }>("/api/builds/local", {
       method: "POST",
       body: JSON.stringify({ path }),
+    }),
+  draft: (key: string, guid: string) =>
+    req<{ draft: DraftSteps | null }>(`/api/builds/${encodeURIComponent(key)}/draft/${encodeURIComponent(guid)}`),
+  approveDraft: (key: string, guid: string) =>
+    req<{ ok: boolean; draft: DraftSteps | null }>(`/api/builds/${encodeURIComponent(key)}/draft/${encodeURIComponent(guid)}`, {
+      method: "POST",
+      body: "{}",
     }),
   setOption: (key: string, guid: string, selected: boolean) =>
     req<{ ok: boolean; options: ModOption[] }>(`/api/builds/${encodeURIComponent(key)}/option`, {

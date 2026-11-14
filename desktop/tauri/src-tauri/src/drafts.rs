@@ -12,7 +12,10 @@
 //!    --auto-generate-local` with an archive map, so a mod only ever uses the
 //!    files downloaded for it).
 //!
-//! Nothing here approves a draft by itself, and nothing on disk changes.
+//! Nothing here approves a draft by itself, and nothing on disk changes. A
+//! draft can be wrong, so the mod's details show its steps and only the
+//! player's approval there (`approve`) lets Check use one the replay could not
+//! confirm.
 use crate::state::{log, state};
 use modsync::{
     Component, Guide,
@@ -168,4 +171,201 @@ fn name_of(guide: &Guide, guid: &str) -> String {
         .iter()
         .find(|c| c.guid == guid)
         .map_or_else(|| guid.to_owned(), |c| c.name.clone())
+}
+
+/// One drafted step in plain words, with the folders named the way players
+/// know them.
+fn step_text(step: &modsync::Instruction, options: &[Component]) -> String {
+    fn folders(path: &str) -> String {
+        path.replace("<<modDirectory>>", "mods folder")
+            .replace("<<kotorDirectory>>", "game folder")
+            .replace("<<gameDirectory>>", "game folder")
+    }
+    fn option_name(options: &[Component], id: &str) -> Option<String> {
+        options.iter().find_map(|o| {
+            if o.guid.eq_ignore_ascii_case(id) {
+                Some(o.name.clone())
+            } else {
+                option_name(&o.options, id)
+            }
+        })
+    }
+    let sources: Vec<String> = step
+        .source
+        .iter()
+        .map(|s| option_name(options, s).unwrap_or_else(|| folders(s)))
+        .collect();
+    let mut text = format!("{}: {}", step.action, sources.join(", "));
+    if !step.destination.trim().is_empty() {
+        text.push_str(&format!(" to {}", folders(&step.destination)));
+    }
+    if !step.arguments.trim().is_empty() {
+        text.push_str(&format!(" ({})", step.arguments.trim()));
+    }
+    text
+}
+
+/// The drafted steps of a mod and its options, in order.
+fn steps(component: &Component, options: &[Component], out: &mut Vec<String>, prefix: &str) {
+    for step in &component.instructions {
+        out.push(format!("{prefix}{}", step_text(step, options)));
+    }
+    for option in &component.options {
+        steps(option, options, out, &format!("{prefix}{}: ", option.name));
+    }
+}
+
+/// What the details of a mod say about steps the app drafted for it, or `None`
+/// when the mod's steps were written by the guide author.
+pub(crate) fn describe(component: &Component) -> Option<Value> {
+    let needs_review = draft::requires_review(component);
+    let record = component.metadata.get("DraftReview");
+    if record.is_none() && !needs_review {
+        return None;
+    }
+    let result = record.and_then(|r| r.get("Result"));
+    let list = |key: &str| -> Vec<String> {
+        result
+            .and_then(|r| r.get(key))
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    // The engine leaves this gap on a mod whose steps depend on what is in its
+    // download. Check works those out from the downloaded archive.
+    let mut waiting = false;
+    let mut open: Vec<String> = list("UnparsedGaps")
+        .into_iter()
+        .filter(|gap| {
+            let method = gap.contains("requires observed archive contents");
+            waiting |= method;
+            !method
+        })
+        .collect();
+    open.extend(list("ConditionalDrafts"));
+    let rejected = result
+        .and_then(|r| r.get("RejectedDrafts"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let mut drafted = Vec::new();
+    steps(component, &component.options, &mut drafted, "");
+    Some(json!({
+        "needs_review": needs_review,
+        "waiting_for_download": needs_review && waiting,
+        "steps": drafted,
+        "unclear": open,
+        "rejected": rejected,
+        "can_approve": needs_review && !waiting && record.is_some() && open.is_empty() && rejected == 0,
+    }))
+}
+
+/// The drafted steps of one mod in the open build.
+pub fn show(app: &AppHandle, key: &str, guid: &str) -> crate::state::Reply {
+    let st = state(app);
+    let inner = st.lock();
+    let loaded = inner
+        .loaded
+        .as_ref()
+        .filter(|l| l.key == key)
+        .ok_or_else(|| crate::state::fail(400, "Load the mod list first"))?;
+    let component = loaded
+        .guide
+        .components
+        .iter()
+        .find(|c| c.guid.eq_ignore_ascii_case(guid))
+        .ok_or_else(|| crate::state::fail(404, "Unknown mod"))?;
+    Ok(json!({"draft": describe(component)}))
+}
+
+/// Approve the drafted steps of one mod, as ModSync's "Mark these
+/// instructions reviewed" does (`draft::mark_reviewed`). The approval is kept
+/// for this build, tied to exactly these steps.
+pub fn approve(app: &AppHandle, key: &str, guid: &str) -> crate::state::Reply {
+    let st = state(app);
+    let (name, draft) = {
+        let mut inner = st.lock();
+        let loaded = inner
+            .loaded
+            .as_mut()
+            .filter(|l| l.key == key)
+            .ok_or_else(|| crate::state::fail(400, "Load the mod list first"))?;
+        let component = loaded
+            .guide
+            .components
+            .iter_mut()
+            .find(|c| c.guid.eq_ignore_ascii_case(guid))
+            .ok_or_else(|| crate::state::fail(404, "Unknown mod"))?;
+        let identity = draft::review::identity(component)
+            .and_then(|identity| draft::mark_reviewed(component).map(|()| identity))
+            .map_err(|e| crate::state::fail(422, format!("{e:#}")))?;
+        let name = component.name.clone();
+        let draft = describe(component);
+        inner
+            .ui
+            .reviewed_drafts
+            .entry(key.to_owned())
+            .or_default()
+            .insert(guid.to_ascii_lowercase(), identity);
+        (name, draft)
+    };
+    st.save_ui();
+    log(
+        app,
+        format!("You approved the drafted install steps of {name}."),
+        "info",
+    );
+    Ok(json!({"ok": true, "draft": draft}))
+}
+
+/// Bring back the approvals the player gave for this build, for drafts that
+/// came out exactly the same as the steps they approved.
+pub(crate) fn apply_saved(app: &AppHandle, key: &str, guide: &mut Guide) {
+    let saved = state(app)
+        .lock()
+        .ui
+        .reviewed_drafts
+        .get(key)
+        .cloned()
+        .unwrap_or_default();
+    for component in &mut guide.components {
+        let Some(approved) = saved.get(&component.guid.to_ascii_lowercase()) else {
+            continue;
+        };
+        if draft::requires_review(component)
+            && draft::review::identity(component).is_ok_and(|now| &now == approved)
+        {
+            let _ = draft::mark_reviewed(component);
+        }
+    }
+}
+
+/// Give the open build the steps this run drafted from downloads, so the mod's
+/// details can show them for review. Mods that already had steps keep theirs.
+pub(crate) fn keep_for_review(app: &AppHandle, key: &str, guide: &Guide) {
+    let st = state(app);
+    let mut inner = st.lock();
+    let Some(loaded) = inner.loaded.as_mut().filter(|l| l.key == key) else {
+        return;
+    };
+    for drafted in guide
+        .components
+        .iter()
+        .filter(|c| c.metadata.contains_key("DraftReview"))
+    {
+        if let Some(slot) = loaded.guide.components.iter_mut().find(|c| {
+            c.guid == drafted.guid
+                && c.instructions.is_empty()
+                && !c.metadata.contains_key("DraftReview")
+        }) {
+            let selected = slot.is_selected;
+            *slot = drafted.clone();
+            slot.is_selected = selected;
+        }
+    }
 }

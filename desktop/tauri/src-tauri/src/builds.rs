@@ -322,6 +322,7 @@ pub fn mod_json(
         "installed": installed,
         "options": options_json(&c.options),
         "aspyr_only": modsync::game::aspyr_exclusive(c),
+        "draft": crate::drafts::describe(c),
         "dependencies": names(all, &c.dependencies),
         "restrictions": names(all, &c.restrictions),
     })
@@ -338,12 +339,13 @@ pub fn load(app: &AppHandle, key: &str, r: &Request) -> Reply {
     let refresh = r.q("refresh") == "true";
     let (path, from_cache) =
         fetch(&st, &build, refresh).map_err(|e| fail(502, format!("{e:#}")))?;
-    let guide = if build.custom {
+    let mut guide = if build.custom {
         Guide::load_for_install_preserving_selection(&path)
     } else {
         crate::overlays::load(app, &path, key)
     }
     .map_err(|e| fail(422, format!("{e:#}")))?;
+    crate::drafts::apply_saved(app, key, &mut guide);
     let installed: BTreeSet<String> = target_profile(&st, &build.game)
         .ok()
         .and_then(|profile| profile.kotor_directory)
