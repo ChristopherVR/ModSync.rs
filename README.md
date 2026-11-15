@@ -88,7 +88,7 @@ cargo build --locked --no-default-features --lib --bin modsync -j2
 cargo clippy --locked --no-default-features --lib --bin modsync -j2 -- -D warnings
 ```
 
-Rust tests and custom Rust harnesses are frozen during the parity effort; do not build or run test targets or use `--all-targets`. CI runs production checks on Linux, including a Windows cross-check; native Windows and macOS builds require manual dispatch. These gates verify compilation and linting, not full parity. See [AGENTS.md](AGENTS.md) for contributor rules and [the cloud bootstrap](docs/parity/cloud/README.md) for isolated production CLI proofs and their prerequisites.
+Rust tests and custom Rust harnesses are frozen during the parity effort; do not build or run test targets or use `--all-targets`. CI runs production checks on Linux, including a Windows cross-check; native Windows and macOS builds require manual dispatch. These gates verify compilation and linting, not full parity.
 
 The pinned C# fixtures in `tests/fixtures/csharp` run in normal Cargo tests. On Linux, `tools/check_formats.py --reference-dll <built-ModSync.Core.dll> --rust <modsync-binary> --output <scratch-folder>` reruns the bidirectional format checks with bubblewrap isolating C# settings/cache and network access. The check compares install-relevant fields and records its scope in `receipt.json`.
 
