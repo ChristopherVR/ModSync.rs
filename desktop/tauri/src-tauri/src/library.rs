@@ -499,7 +499,7 @@ pub fn route(app: &AppHandle, r: &Request, s: &[&str]) -> Reply {
             let (svc, _, _) = service(&st, &profile).map_err(fail_any)?;
             let game = svc.game_directory().display().to_string();
             let pending = st.lock().failed_roots.is_some()
-                || modsync::paths::Roots::new(Path::new(&st.mods_dir()), svc.game_directory())
+                || crate::pipeline::recovery_roots(Path::new(&st.mods_dir()), svc.game_directory())
                     .is_ok_and(|roots| {
                         modsync::recovery::state_dir(&roots)
                             .join("pending")
@@ -516,7 +516,8 @@ pub fn route(app: &AppHandle, r: &Request, s: &[&str]) -> Reply {
             // remove every library mod (putting back the files they replaced).
             let failed = st.lock().failed_roots.take();
             let roots = failed.or_else(|| {
-                modsync::paths::Roots::new(Path::new(&st.mods_dir()), svc.game_directory()).ok()
+                crate::pipeline::recovery_roots(Path::new(&st.mods_dir()), svc.game_directory())
+                    .ok()
             });
             if let Some(roots) = roots
                 && modsync::recovery::state_dir(&roots)

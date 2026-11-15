@@ -1127,6 +1127,13 @@ fn apply_selection(
 }
 
 /// Load and order a guide without mutating authored selection when requested.
+/// Roots for recovery state lookups. Recovery state is keyed by the game root
+/// that `install` used, and `Settings::new` resolves a Steam `steamassets` layout
+/// first, so restore and completion summaries must resolve it the same way.
+fn recovery_roots(source_dir: &std::path::Path, game_dir: &std::path::Path) -> Result<Roots> {
+    Roots::new(source_dir, &modsync::game::resolve_install_root(game_dir))
+}
+
 /// Rooted selection and profiles preserve the flags; legacy rootless validation
 /// retains its reference file-loader default. Ordering checks remain unchanged.
 fn load_validation_guide(input: &std::path::Path, preserve_selection: bool) -> Result<Guide> {
@@ -1592,9 +1599,9 @@ fn load_resolved_archives(
             ensure!(
                 !filename.is_empty()
                     && filename.len() <= 255
-                    && !filename.contains(['/', '\\', '*', '?', '[', ']'])
+                    && !filename.contains(['/', '\\', '*', '?'])
                     && !filename.chars().any(char::is_control)
-                    && modsync::paths::relative(filename, false)?
+                    && modsync::paths::literal_relative(filename)?
                         .components()
                         .count()
                         == 1,
@@ -2799,7 +2806,7 @@ fn dispatch(command: Option<Action>, case_insensitive_pathing: bool) -> Result<(
         Some(Action::Restore {
             game_dir,
             source_dir,
-        }) => recovery::restore(&Roots::new(&source_dir, &game_dir)?),
+        }) => recovery::restore(&recovery_roots(&source_dir, &game_dir)?),
         Some(Action::ModInfo { url, settings_dir }) => {
             let key = if matches!(
                 modsync::mod_info::page(&url),
@@ -2872,7 +2879,7 @@ fn dispatch(command: Option<Action>, case_insensitive_pathing: bool) -> Result<(
             source_dir,
             json,
         }) => {
-            let summary = recovery::completion_summary(&Roots::new(&source_dir, &game_dir)?)?;
+            let summary = recovery::completion_summary(&recovery_roots(&source_dir, &game_dir)?)?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&summary)?);
             } else if let Some(summary) = summary {
@@ -2965,8 +2972,12 @@ fn dispatch(command: Option<Action>, case_insensitive_pathing: bool) -> Result<(
             // C1/C4: the loaded guide stays pristine for `record`/`save`; selection runs on
             // a separate, transient clone that plan/run/the Peer adapter/`fomod_followups`
             // see instead. No selection change from this run is ever written back.
+            // The clone drafts prose Markdown as `selection`, `validate`, `install` and the
+            // desktop do, so the option GUIDs they print select here and planning sees the
+            // same drafted instructions; drafts are never recorded into the guide.
             let mut guide = Guide::load_preserving_selection(&input)?;
             let mut execution = guide.clone();
+            execution.draft_for_install(&input);
             let has_selector = !select.is_empty()
                 || !option.is_empty()
                 || !selection_flags.select_through_tier.is_empty()
@@ -3149,14 +3160,27 @@ fn dispatch(command: Option<Action>, case_insensitive_pathing: bool) -> Result<(
             };
             // Execution only: dry-run returned above without network discovery. A
             // discovery error after a signal exits 130, as planning and the run do.
+            // Discovery lists every provider page and rereads every archive already in
+            // the mod folder before the first acquisition event, so it reports progress.
             let plan = finish_acquisition_result(
-                orchestrator::discover_with_loopback_ca(
+                orchestrator::discover_observed(
                     &execution,
                     &plan,
                     &plan_options,
                     &run_settings,
                     &cancelled,
                     loopback_ca.as_ref(),
+                    // Human progress on stderr: stdout keeps the C5 contract of
+                    // acquisition events and one summary.
+                    |progress| {
+                        let what = match progress.stage {
+                            orchestrator::DiscoveryStage::Pages => "Checking download pages",
+                            orchestrator::DiscoveryStage::ExistingFiles => {
+                                "Checking files already in the mods folder"
+                            }
+                        };
+                        eprintln!("{what}: {} of {}", progress.done, progress.total);
+                    },
                 ),
                 &cancelled,
             )?;

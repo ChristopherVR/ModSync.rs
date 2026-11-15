@@ -88,9 +88,17 @@ pub(crate) fn pending_roots(app: &AppHandle) -> Option<modsync::paths::Roots> {
     let store = st.prefs.store().ok()?;
     let profile = store.load(&store.active_name().ok()??).ok()??;
     let game = profile.kotor_directory?;
-    modsync::paths::Roots::new(Path::new(&st.mods_dir()), Path::new(&game))
+    recovery_roots(Path::new(&st.mods_dir()), Path::new(&game))
         .ok()
         .filter(|r| pending(r))
+}
+
+/// The folders a restore point is kept for. An install resolves a Steam
+/// `steamassets` layout to the real game folder first (`Settings::new`), so
+/// looking a restore point up must resolve it the same way, as the
+/// command line's `restore` does.
+pub(crate) fn recovery_roots(mods: &Path, game: &Path) -> anyhow::Result<modsync::paths::Roots> {
+    modsync::paths::Roots::new(mods, &modsync::game::resolve_install_root(game))
 }
 
 pub fn recovery_state(app: &AppHandle) -> Reply {
