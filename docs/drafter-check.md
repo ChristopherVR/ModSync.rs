@@ -4,7 +4,8 @@ The drafter turns a guide's written directions into instructions with fixed
 patterns. Guides are written for people, so it will always misread some mods
 (see [What drafts get wrong](../site/instruction-files.html#draft-mistakes)).
 Every draft therefore needs a human review after it is made, and nothing
-drafted installs until it has one.
+drafted installs until it has one. The drafter is a starting point for guide
+authors, not a way to install prose guides unattended.
 
 CI follows the same rule. It should install from a **reviewed instruction
 set**: the guide's instructions, drafted once, checked and fixed by a person,
