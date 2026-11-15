@@ -19,6 +19,15 @@ ModSync is a [Kolto Labs](https://koltolabs.bodecloud.workers.dev/) tool for ins
 
 The site's source is in [`site/`](site/) and deploys from `main` through `.github/workflows/pages.yml`.
 
+A Cloudflare Workers deployment is also available at [modsync-site.bodecloud.workers.dev](https://modsync-site.bodecloud.workers.dev/). The site is static HTML, CSS and JavaScript and needs no build step. To deploy the checked-out site's contents to Workers, run these commands from the repository root with Node.js and npm installed.
+
+```sh
+npx wrangler login
+npx wrangler deploy
+```
+
+The root `wrangler.jsonc` publishes only `site/`. Local preview is available with `python3 -m http.server 8000 --directory site` at `http://localhost:8000/`.
+
 ## Download
 
 Packaged builds are published on the [Releases page](https://github.com/kolto-labs/ModSync.rs/releases).
@@ -89,7 +98,7 @@ cargo build --locked --no-default-features --lib --bin modsync -j2
 cargo clippy --locked --no-default-features --lib --bin modsync -j2 -- -D warnings
 ```
 
-Rust tests and custom Rust harnesses are frozen during the parity effort; do not build or run test targets or use `--all-targets`. CI runs production checks on Linux, including a Windows cross-check; native Windows and macOS builds require manual dispatch. These gates verify compilation and linting, not full parity. See [AGENTS.md](AGENTS.md) for contributor rules and [the cloud bootstrap](docs/parity/cloud/README.md) for isolated production CLI proofs and their prerequisites.
+Rust tests and custom Rust harnesses are frozen during the parity effort; do not build or run test targets or use `--all-targets`. CI runs production checks on Linux, including a Windows cross-check; native Windows and macOS builds require manual dispatch. These gates verify compilation and linting, not full parity.
 
 The pinned C# fixtures in `tests/fixtures/csharp` run in normal Cargo tests. On Linux, `tools/check_formats.py --reference-dll <built-ModSync.Core.dll> --rust <modsync-binary> --output <scratch-folder>` reruns the bidirectional format checks with bubblewrap isolating C# settings/cache and network access. The check compares install-relevant fields and records its scope in `receipt.json`.
 
