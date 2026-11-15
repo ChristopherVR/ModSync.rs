@@ -277,6 +277,24 @@ placeholders survive conversion but still fail Rust execution. This does not clo
 F01/F05, full validation or complete format/action parity. Five production gates
 pass and53 frozen entries remain unchanged; no Rust tests were run.
 
+## DeadlyStream pages with loose files or non-ASCII file names, 2026-11-14 UTC
+
+A DeadlyStream page that offers an archive beside a loose file now plans only its
+archives. Rust verifies every download as an archive before publishing it, so the extra
+file (HD Darth Malak's `N_DarthMalak01.tga`, Rebalanced Grenades' `Readme.rtf`) always
+failed with `Unsupported archive signature` after downloading and marked the mod failed
+although its archives arrived. Such a file is now skipped with a plan warning naming it.
+Guides that name the file under `Files` or a filename are planned as before. A page
+whose only files are loose (CineMalak's single `N_DarthMalak01.tga`) is unchanged: it
+still fails archive verification, because a non-archive download is not supported.
+
+A file name sent as raw UTF-8 in a plain `filename="..."` header is now read. Header
+values were taken only when they were visible ASCII, so Jolee Bindo HD's
+`Jolee Bindo HD <U+2014> clothes.rar` looked unnamed and failed with `DeadlyStream did
+not name a download`. DeadlyStream pages, direct downloads and direct-link metadata now
+decode Content-Disposition as UTF-8; a value that is not valid UTF-8 is still ignored.
+Verified live against the four pages.
+
 ## Typed install progress and Installing page — 2026-09-27
 
 Commits `065ffee` (shared contract), `57f198f`, `cd8f0b0` and `33de7f6` (CLI adapter and help text), `dcd1373`..`ac9cf3a`, `a24e96b` and `9df6c3b` (desktop page). Rulings, commit map and review findings are in [install-progress-integration.md](docs/parity/install-progress-integration.md). Evidence is in [install-progress-native/](docs/parity/install-progress-native/README.md).
@@ -1267,6 +1285,33 @@ The issue texts keep Rust's wording, without C#'s `ERROR: <component>:` prefix. 
 [gate-collect proof](docs/parity/fomod-gate-collect-proof/README.md), 67/67 checks (22
 fail on `d78aea2`); contract in [fomod-gate-collect.md](docs/parity/fomod-gate-collect.md).
 
+## Download recommendations phrased against an option, 2026-11-14 UTC
+
+Markdown drafting turned a download recommendation phrased against something into an
+option to choose. In the KOTOR 1 Full Build, "which I recommend against" (Stunbaton HD)
+became an option named `against`, "do not download the "stunbaton 2025" file" became
+`"stunbaton 2025"`, and "recommend against the "ZaalbarHD (...)" version" became
+`against the "ZaalbarHD (...)"`; all three were preselected and listed by `selection`
+as if they were mods. The drafter now skips a recommendation whose option starts with
+`against` or `not`, or whose verb follows `not`, `n't`, `never`, `avoid`, `skip` or
+`ignore`. This deliberately differs from the pinned C# parser, which drafts them. Other
+drafted download options are unchanged: the build now drafts 6 options instead of 9 and
+preselects 2 instead of 5 (`Base install` and the HQ Cockpit Skyboxes medium option).
+The 4 unselected options C# also drafts from loose wording (`and install both`, `only
+the`, `a non-English mod`, `mod`) are kept. An option's GUID depends on its position,
+so an option that followed a skipped one gets a new GUID.
+
+`fetch-downloads` now drafts prose Markdown on its working copy of the guide, as
+`selection`, `validate`, `install` and the desktop already did. Before, it loaded the
+Markdown undrafted, so an option GUID printed by `selection` was unknown to
+`fetch-downloads --option`, and planning did not see drafted instructions. The authored
+guide that `--record` saves is still the undrafted one.
+
+Unchanged and by design: every loader reads 197 top-level mods from the build (186
+under "Mod List" plus 11 widescreen-only). `selection` counts and preselects base mods
+only (186), as the desktop main page does; the 11 widescreen-only mods belong to the
+widescreen phase. `--select` takes mods; options are selected with `--option`.
+
 ## Delete, Copy, Move and Extract with an empty Source list — 2026-10-04 UTC
 
 An instruction whose `Source` list is empty after loading (`Source = []`, only blank
@@ -1661,6 +1706,33 @@ Unchanged: a Patcher Source with `*` or `?` is refused (it must bind exactly one
 path), and Destinations, Rename Destinations and maintenance transactions still refuse
 `[`/`]`. Covered by `tests/installer.rs` and `tests/archive_generation.rs`; the full
 installer suite still has 11 failures that also fail without this change.
+
+## Download file names with brackets, 2026-11-14 UTC
+
+A file name a host reports (DeadlyStream, MEGA, Nexus, a direct link's
+Content-Disposition, a peer or torrent name) may now contain `[` and `]`, as in C#.
+Rust checked every downloaded file name with the guide Destination rule, which refuses
+`[`/`]` as wildcards, so a page such as DeadlyStream's
+`[K1]_All_Hands_on_Deck_for_the_Leviathan_Prison_Break.7z` failed with `DeadlyStream
+lists an unsafe file name ... Wildcards are not allowed here`. 25 mods of the KOTOR 1
+Full Build failed this way. A file name is taken literally, never as a pattern, so the
+check now uses the literal-name rule archive members use (`paths::literal_relative`).
+The same rule now admits such names in filename discovery
+(`archive-generation`/`--resolved-archives` input), a `ResourceRegistry` key that names a
+local archive, registered FOMOD archive names under `Files`, and Peer/torrent file
+names.
+
+Matching was already literal: Extract and other Sources, download planning
+(`download_plan`) and missing-source recovery treat `[` and `]` as ordinary characters
+and only `*` and `?` as wildcards, so an authored `<<modDirectory>>/[K1]_Mod_*.7z`
+selects and extracts `[K1]_Mod_v1.7z` and never forms a character class.
+
+Unchanged: a host file name holding `*` or `?` is still refused (no Windows file can
+carry it), as are separators, `..`, drive prefixes, trailing dots or spaces and device
+names. Verified live: five bracket-named DeadlyStream archives (including
+`[K1]_Animated_Swoop_Screen_[TSLPort].7z`) download, and a guide with
+`Extract <<modDirectory>>/[K1]_Animated_Swoop_Screen_*.7z` plus a Copy from the
+bracketed extraction folder selects, downloads and resolves that archive.
 
 ## Execute and Run Arguments — 2026-10-04 UTC
 
@@ -3179,23 +3251,13 @@ The local fixed-NTFS process-interruption capability now includes persistent nam
 
 ### Windows process-fence namespace on ordinary game folders
 
-The game-scoped recovery directory (`.modsync-*` beside the game folder) is now
-created on Windows with a protected DACL granting only the current user, SYSTEM and
-Administrators, instead of inheriting the game folder's grants. A directory the
-current user already owns that still carries only inherited grants is made private
-the same way while acquiring the root locks; validation never changes it. The
-recovery directory, the external-process record and the job object keep their
-existing owner, protection and foreign-grant checks.
+The game-scoped recovery directory (`.modsync-*` beside the game folder) is now created on Windows with a protected DACL granting only the current user, SYSTEM and Administrators, instead of inheriting the game folder's grants. A directory the current user already owns that still carries only inherited grants is made private the same way while acquiring the root locks; validation never changes it. The recovery directory, the external-process record and the job object keep their existing owner, protection and foreign-grant checks.
 
-Directories above the recovery directory are exactly the game folder's own
-ancestors. They must be ordinary non-reparse directories owned by the current
-user, SYSTEM, Administrators or TrustedInstaller; their grants are no longer
-judged, because anyone able to rename them already controls the game path itself.
-Games under `C:\Program Files (x86)`, Steam libraries, `C:\GOG Games` or a data
-drive with the default Authenticated Users modify grant therefore pass the fence.
-Ancestors owned by another user are still rejected. The trust model is unchanged:
-other-user substitution of the fence record is prevented, hostile same-user
-isolation is not claimed.
+Directories above the recovery directory are exactly the game folder's own ancestors. They must be ordinary non-reparse directories owned by the current user, SYSTEM, Administrators or TrustedInstaller; their grants are no longer judged, because anyone able to rename them already controls the game path itself. Games under `C:\Program Files (x86)`, Steam libraries, `C:\GOG Games` or a data drive with the default Authenticated Users modify grant therefore pass the fence. Ancestors owned by another user are still rejected. The trust model is unchanged: other-user substitution of the fence record is prevented, hostile same-user isolation is not claimed.
+
+### Windows checkpoint tree paths
+
+Checkpoint trees always recorded relative paths with `/` separators, but the tree reader and provenance lookup compared them with the native Windows spelling (`\`), so every checkpointed install, including desktop installs with managed deployment, stopped with "Checkpoint path is not portable canonical relative text" at the first file inside a folder. Both now compare the portable spelling, and a tree entry's ancestors are looked up by their stored `/` prefixes. The stored format is unchanged: entries containing `\` are still rejected, and no store written by an earlier build used them. Managed live-edit report paths now also use `/` on Windows.
 
 ### Desktop presentation completion (2026-10-02 source boundary)
 

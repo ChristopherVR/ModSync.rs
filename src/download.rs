@@ -511,7 +511,7 @@ fn fetch_inner(
     let disposition = response
         .headers()
         .get(reqwest::header::CONTENT_DISPOSITION)
-        .and_then(|v| v.to_str().ok())
+        .and_then(header_utf8)
         .map(str::to_owned);
     // Every response's bounded prefix is read before any status decision, so a challenge,
     // login or countdown page is a manual boundary whatever its status or content type.
@@ -720,10 +720,13 @@ fn check_cancelled(cancelled: &AtomicBool) -> Result<()> {
 }
 
 /// The one-component rule for any server- or guide-supplied filename: exactly one normal
-/// path component, with the Windows name rules `paths::relative` applies everywhere.
+/// path component, with the Windows name rules `paths::literal_relative` applies
+/// everywhere. A file name is taken literally, never as a pattern, so `[` and `]` are
+/// ordinary characters (DeadlyStream serves many `[K1]_...` archives); `*` and `?` stay
+/// refused because no Windows file can carry them.
 pub fn one_component(name: &str) -> Result<&str> {
     let name = crate::updates::validate_download_file_name(name)?;
-    let relative = crate::paths::relative(name, false)?;
+    let relative = crate::paths::literal_relative(name)?;
     ensure!(
         relative.as_os_str() == name,
         "Downloaded filename {name:?} is not a single file name"
@@ -925,4 +928,11 @@ pub(crate) fn percent_decode(text: &str) -> String {
         }
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+/// A header value as UTF-8 text. `HeaderValue::to_str` accepts visible ASCII only, so a
+/// server that sends a file name's UTF-8 bytes in a plain `filename="..."` (DeadlyStream
+/// does, for a name with a long dash) would otherwise look as if it named nothing.
+pub(crate) fn header_utf8(value: &reqwest::header::HeaderValue) -> Option<&str> {
+    std::str::from_utf8(value.as_bytes()).ok()
 }
