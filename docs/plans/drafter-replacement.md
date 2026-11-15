@@ -61,8 +61,8 @@ be decided exactly.
 
 ## Questions for the maintainer
 
-- How to reach OdyEdit: `kolto-labs/OdyEdit`, linked from #98, isn't readable
-  from outside the organization, and stage 2 depends on it.
+- How to reach OdyEdit: `kolto-labs/OdyEdit`, linked from #98, returns not
+  found for this contributor's account, and stage 2 depends on it.
 - Whether reviewed configurations belong in `kolto-labs/mod-builds`, pinned per
   guide version like the reviewed instruction sets in `docs/drafter-check.md`.
 - Whether the instruction format should reference a `changes.ini` shipped next
