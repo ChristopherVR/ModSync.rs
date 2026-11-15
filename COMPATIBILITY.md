@@ -254,6 +254,23 @@ report.cancelled is true and CLI exit is130. Body/race cancellation marks the
 target cancelled. This pre-existing distinction remains explicit. GUI downloads,
 persistent sharing, complete providers and F29 remain open.
 
+## Host file names with HTML entities or a quoted `;`, 2026-11-14 UTC
+
+DeadlyStream HTML-escapes the file name in its Content-Disposition header
+(`attachment; filename="Emperor Turnip&#39;s Gizka.rar"`). Rust split the header on
+every `;`, including the one inside the quoted name, so the name became
+`"Emperor Turnip&#39` and the download failed with `DeadlyStream lists an unsafe file
+name`. Emperor Turnip's HD Gizka and Ajunta Pall's Swords Revamped in the KOTOR 1 Full
+Build failed this way.
+
+Content-Disposition parameters are now split on `;` outside quoted strings only (for
+every host), and a DeadlyStream header file name has its HTML entities (numeric such
+as `&#39;`, and `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`) decoded once, so the file
+is saved as `Emperor Turnip's Gizka.rar`. The one-component file name check still runs
+on the decoded name, so an encoded separator or other unsafe name is still refused. The
+other scraped DeadlyStream fields (links, CSRF key, version, date, size) were already
+decoded; no page title is scraped. Verified live against both pages.
+
 ## Stored instruction Source normalization — 2026-09-28
 
 Source `62b6f70`, evidence `0f48868`, passed independent SPEC and QUALITY review.
@@ -2861,6 +2878,24 @@ A wildcard reaches only its own folder level: `Override/**` is the same as
 `Override/*`, so name each subfolder level you need (`textures/*`, `textures/hd/*`).
 `[` and `]` in a Source are ordinary characters.
 
+## Fetch discovery on large selections
+
+Before its first acquisition event, `fetch-downloads` lists every unnamed DeadlyStream
+page for its archive names and hashes and test-reads every archive already in the mod
+folder, then rereads those archives again under the mod-root lock. All of this ran one
+page or one archive at a time with no output, so a full build (about 170 mods, almost
+every one a DeadlyStream page) sat silent for over ten minutes and looked hung, while a
+batch of 15 finished in about a minute. Page listings and present-archive checks now
+run on the `--workers` threads (bounded to 1 to 32, default 4), and so does the
+reread under the lock. Filename selection, warnings, targets, skips and the order of
+the returned plan are unchanged; a reread failure still stops the run before any
+transfer. Discovery now writes `Checking download pages: N of M` and `Checking files
+already in the mods folder: N of M` to stderr as it goes, with or without
+`--progress-json`; stdout still carries only acquisition events and the summary.
+Library callers get the same counts from `discover_observed`. Nexus page discovery
+stays sequential. The desktop runs the same parallel discovery without the progress
+lines.
+
 ## Fetch shared URL and destination — 2026-09-28 UTC
 
 `fetch-downloads` no longer lets two selected components race for one archive file.
@@ -3061,6 +3096,20 @@ the remaining delivery/platform limitations. The production build and strict
 Clippy without desktop features passed after the initial T2/E6 integration;
 later review changes still require their own production checks. These checks
 do not establish package execution or full feature acceptance.
+
+### Windows managed deployment roots
+
+On Windows, `install --managed --component-checkpoints` stopped before the first
+mod with "Incorrect function. (os error 1)", whether the roots came from
+`--staging-dir`/`--manifest-dir` or from a profile. The managed path check
+inspected every component of a path, including the bare drive prefix of the
+verbatim owner-record path (`\\?\D:`), which opens the volume device rather than
+a directory. Prefix components are now skipped; the root directory and every
+folder below it are still checked for symlinks, reparse points and file types.
+The staging and manifest roots are also held in the same canonical spelling as the
+game directory, because the checkpoint store binds managed participants to that
+spelling and refused the ordinary `D:\...` form. Ownership records already used
+the canonical spelling and are unchanged. Unix paths are unaffected.
 
 ### Opt-in managed checkpoints and archive times (2026-10-02)
 
