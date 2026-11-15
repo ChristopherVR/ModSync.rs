@@ -254,6 +254,23 @@ report.cancelled is true and CLI exit is130. Body/race cancellation marks the
 target cancelled. This pre-existing distinction remains explicit. GUI downloads,
 persistent sharing, complete providers and F29 remain open.
 
+## Host file names with HTML entities or a quoted `;`, 2026-11-14 UTC
+
+DeadlyStream HTML-escapes the file name in its Content-Disposition header
+(`attachment; filename="Emperor Turnip&#39;s Gizka.rar"`). Rust split the header on
+every `;`, including the one inside the quoted name, so the name became
+`"Emperor Turnip&#39` and the download failed with `DeadlyStream lists an unsafe file
+name`. Emperor Turnip's HD Gizka and Ajunta Pall's Swords Revamped in the KOTOR 1 Full
+Build failed this way.
+
+Content-Disposition parameters are now split on `;` outside quoted strings only (for
+every host), and a DeadlyStream header file name has its HTML entities (numeric such
+as `&#39;`, and `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`) decoded once, so the file
+is saved as `Emperor Turnip's Gizka.rar`. The one-component file name check still runs
+on the decoded name, so an encoded separator or other unsafe name is still refused. The
+other scraped DeadlyStream fields (links, CSRF key, version, date, size) were already
+decoded; no page title is scraped. Verified live against both pages.
+
 ## Stored instruction Source normalization — 2026-09-28
 
 Source `62b6f70`, evidence `0f48868`, passed independent SPEC and QUALITY review.
@@ -276,6 +293,24 @@ values and the examined XML empty-array case do not have identical models. Upper
 placeholders survive conversion but still fail Rust execution. This does not close
 F01/F05, full validation or complete format/action parity. Five production gates
 pass and53 frozen entries remain unchanged; no Rust tests were run.
+
+## DeadlyStream pages with loose files or non-ASCII file names, 2026-11-14 UTC
+
+A DeadlyStream page that offers an archive beside a loose file now plans only its
+archives. Rust verifies every download as an archive before publishing it, so the extra
+file (HD Darth Malak's `N_DarthMalak01.tga`, Rebalanced Grenades' `Readme.rtf`) always
+failed with `Unsupported archive signature` after downloading and marked the mod failed
+although its archives arrived. Such a file is now skipped with a plan warning naming it.
+Guides that name the file under `Files` or a filename are planned as before. A page
+whose only files are loose (CineMalak's single `N_DarthMalak01.tga`) is unchanged: it
+still fails archive verification, because a non-archive download is not supported.
+
+A file name sent as raw UTF-8 in a plain `filename="..."` header is now read. Header
+values were taken only when they were visible ASCII, so Jolee Bindo HD's
+`Jolee Bindo HD <U+2014> clothes.rar` looked unnamed and failed with `DeadlyStream did
+not name a download`. DeadlyStream pages, direct downloads and direct-link metadata now
+decode Content-Disposition as UTF-8; a value that is not valid UTF-8 is still ignored.
+Verified live against the four pages.
 
 ## Typed install progress and Installing page — 2026-09-27
 
@@ -1688,6 +1723,33 @@ Unchanged: a Patcher Source with `*` or `?` is refused (it must bind exactly one
 path), and Destinations, Rename Destinations and maintenance transactions still refuse
 `[`/`]`. Covered by `tests/installer.rs` and `tests/archive_generation.rs`; the full
 installer suite still has 11 failures that also fail without this change.
+
+## Download file names with brackets, 2026-11-14 UTC
+
+A file name a host reports (DeadlyStream, MEGA, Nexus, a direct link's
+Content-Disposition, a peer or torrent name) may now contain `[` and `]`, as in C#.
+Rust checked every downloaded file name with the guide Destination rule, which refuses
+`[`/`]` as wildcards, so a page such as DeadlyStream's
+`[K1]_All_Hands_on_Deck_for_the_Leviathan_Prison_Break.7z` failed with `DeadlyStream
+lists an unsafe file name ... Wildcards are not allowed here`. 25 mods of the KOTOR 1
+Full Build failed this way. A file name is taken literally, never as a pattern, so the
+check now uses the literal-name rule archive members use (`paths::literal_relative`).
+The same rule now admits such names in filename discovery
+(`archive-generation`/`--resolved-archives` input), a `ResourceRegistry` key that names a
+local archive, registered FOMOD archive names under `Files`, and Peer/torrent file
+names.
+
+Matching was already literal: Extract and other Sources, download planning
+(`download_plan`) and missing-source recovery treat `[` and `]` as ordinary characters
+and only `*` and `?` as wildcards, so an authored `<<modDirectory>>/[K1]_Mod_*.7z`
+selects and extracts `[K1]_Mod_v1.7z` and never forms a character class.
+
+Unchanged: a host file name holding `*` or `?` is still refused (no Windows file can
+carry it), as are separators, `..`, drive prefixes, trailing dots or spaces and device
+names. Verified live: five bracket-named DeadlyStream archives (including
+`[K1]_Animated_Swoop_Screen_[TSLPort].7z`) download, and a guide with
+`Extract <<modDirectory>>/[K1]_Animated_Swoop_Screen_*.7z` plus a Copy from the
+bracketed extraction folder selects, downloads and resolves that archive.
 
 ## Execute and Run Arguments — 2026-10-04 UTC
 
@@ -3217,6 +3279,18 @@ Every Patcher installation now uses an owned, bounded, cancellable payload copy.
 ### Windows checkpoint execution (2026-10-02 integrated source boundary)
 
 The local fixed-NTFS process-interruption capability now includes persistent named-job ownership for checkpointed external processes. LaunchIntent precedes JOB_LIST process creation; normal completion requires the owned job to drain. Independent process fences block ordinary checkpoint/deployment/legacy mutations and are settled only through explicit, identity-validated recovery. CLI/desktop expose read-only status and preserve partial recovery outcomes. The former blanket Windows engine block was removed after separate ownership/security and combined integration reviews. The guarantee is limited to same-user, same-logon/session process restart while the OS/filesystem remain running; OS/power-loss and native acceptance are unproven. See `docs/parity/windows-checkpoint-job-quiescence-plan.md`.
+
+### Windows checkpoint tree paths
+
+Checkpoint trees always recorded relative paths with `/` separators, but the
+tree reader and provenance lookup compared them with the native Windows spelling
+(`\`), so every checkpointed install, including desktop installs with managed
+deployment, stopped with "Checkpoint path is not portable canonical relative
+text" at the first file inside a folder. Both now compare the portable spelling,
+and a tree entry's ancestors are looked up by their stored `/` prefixes. The
+stored format is unchanged: entries containing `\` are still rejected, and no
+store written by an earlier build used them. Managed live-edit report paths now
+also use `/` on Windows.
 
 ### Desktop presentation completion (2026-10-02 source boundary)
 
