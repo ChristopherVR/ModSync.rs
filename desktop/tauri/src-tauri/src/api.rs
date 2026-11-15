@@ -497,32 +497,41 @@ fn patcher_status(app: &AppHandle) -> Reply {
         .and_then(|store| store.patcher_preferences())
         .map_err(fail_any)?;
     let custom = prefs.executable.unwrap_or_default();
-    let configured = (!custom.is_empty()).then(|| Path::new(&custom));
-    // The program the engine would run: the chosen one, else one found next to the
-    // app or on PATH. OdyPatcher with neither runs the engine's built-in copy.
-    let resolved = modsync::patcher::resolve(prefs.engine, configured)
-        .ok()
-        .flatten();
-    let (available, source, path) = match resolved {
-        Some(path) => (
-            true,
-            if configured.is_some() {
-                "custom"
-            } else {
-                "system"
-            },
-            Value::from(path.display().to_string()),
-        ),
-        None if configured.is_none() && prefs.engine == modsync::PatcherEngine::OdyPatcher => {
-            (true, "bundled", Value::Null)
-        }
-        None => (false, "none", Value::Null),
-    };
+    // Blank counts as unset, as when an install builds its settings.
+    let configured = (!custom.trim().is_empty()).then(|| Path::new(&custom));
+    // The same choice the engine makes when an install starts: OdyPatcher with no
+    // chosen program always runs the OdyPatcher library linked into the app, even
+    // if an OdyPatcher program is on PATH. Anything else runs the program
+    // `resolve_invocation` finds: the chosen one, else one next to the app or on
+    // PATH. A resolve error says why a chosen program can't be used (missing, or
+    // not an executable file), in the engine's words, so the player can fix it.
+    let (available, source, path, error) =
+        if configured.is_none() && prefs.engine == modsync::PatcherEngine::OdyPatcher {
+            (true, "bundled", Value::Null, None)
+        } else {
+            match modsync::patcher::resolve_invocation(prefs.engine, configured) {
+                Ok(Some(invocation)) => (
+                    true,
+                    if configured.is_some() {
+                        "custom"
+                    } else {
+                        "system"
+                    },
+                    invocation
+                        .native_path()
+                        .map_or(Value::Null, |p| Value::from(p.display().to_string())),
+                    None,
+                ),
+                Ok(None) => (false, "none", Value::Null, None),
+                Err(e) => (false, "none", Value::Null, Some(format!("{e:#}"))),
+            }
+        };
     Ok(json!({
         "available": available,
         "path": path,
         "source": source,
         "custom_patcher_path": custom,
+        "error": error,
         "strategies": [engine_name(prefs.engine)],
     }))
 }

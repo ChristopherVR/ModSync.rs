@@ -112,6 +112,13 @@ export function PatcherSection({ addLog }: PatcherSectionProps) {
                 )}
               </div>
 
+              {/* Why the chosen patcher can't be used */}
+              {ps?.error && (
+                <p className="text-xs text-[hsl(var(--warning))]">
+                  {t("settings.patcher.problem")}: {ps.error}
+                </p>
+              )}
+
               {/* Resolved path */}
               {ps?.path && (
                 <div className="space-y-1">

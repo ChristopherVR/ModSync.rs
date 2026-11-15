@@ -132,6 +132,8 @@ export interface PatcherStatus {
   path: string | null;
   source: "bundled" | "custom" | "system" | "none";
   custom_patcher_path: string;
+  /** Why the chosen patcher can't be used, when it can't. */
+  error?: string | null;
   strategies: string[];
 }
 

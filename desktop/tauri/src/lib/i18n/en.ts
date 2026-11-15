@@ -351,6 +351,7 @@ export const en: Dict = {
     "The built-in OdyPatcher installs compatible TSLPatcher mods automatically. KPatcher and HoloPatcher need their program, found on this computer or chosen below.",
   "settings.patcher.ready": "Ready",
   "settings.patcher.notAvailable": "Not available",
+  "settings.patcher.problem": "Can't use the chosen program",
   "settings.patcher.loading": "Checking patcher engine…",
   "settings.patcher.sourceLabel": "Source",
   "settings.patcher.sourceBundled": "Bundled",

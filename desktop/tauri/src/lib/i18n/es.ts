@@ -237,6 +237,7 @@ export const es: Dict = {
     "El OdyPatcher integrado aplica automáticamente los mods de TSLPatcher compatibles. KPatcher y HoloPatcher necesitan su programa, encontrado en este equipo o elegido abajo.",
   "settings.patcher.ready": "Listo",
   "settings.patcher.notAvailable": "No disponible",
+  "settings.patcher.problem": "No se puede usar el programa elegido",
   "settings.patcher.loading": "Comprobando el motor del parcheador…",
   "settings.patcher.sourceLabel": "Origen",
   "settings.patcher.sourceBundled": "Incluido",
