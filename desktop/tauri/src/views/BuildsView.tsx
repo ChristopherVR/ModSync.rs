@@ -666,6 +666,7 @@ export function BuildsView(props: BuildsViewProps) {
         <BuildModDetail
           mod={openMod}
           error={runtime[openMod.file_id]?.error}
+          unavailable={unavailable}
           onClose={() => setOpenMod(null)}
         />
       )}

@@ -216,6 +216,9 @@ fn names(all: &[Component], ids: &[String]) -> Vec<String> {
 pub fn set_option(app: &AppHandle, key: &str, r: &Request) -> Reply {
     let st = state(app);
     let mut inner = st.lock();
+    // Once the engine has checked the mods folder, an option that can't be
+    // installed (or needs something that can't) can't be turned on (#68).
+    let availability = inner.availability.get(key).cloned();
     let loaded = inner
         .loaded
         .as_mut()
@@ -227,15 +230,20 @@ pub fn set_option(app: &AppHandle, key: &str, r: &Request) -> Reply {
         .get("selected")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    modsync::selection::apply(
-        &mut loaded.guide.components,
-        None,
-        modsync::selection::Action::SetOption {
-            guid: guid.clone(),
-            selected,
-        },
-    )
-    .map_err(fail_any)?;
+    let action = modsync::selection::Action::SetOption {
+        guid: guid.clone(),
+        selected,
+    };
+    match &availability {
+        Some(availability) => modsync::selection::apply_available(
+            &mut loaded.guide.components,
+            None,
+            action,
+            availability,
+        ),
+        None => modsync::selection::apply(&mut loaded.guide.components, None, action),
+    }
+    .map_err(|e| fail(409, format!("{e:#}")))?;
     let owner = loaded
         .guide
         .components

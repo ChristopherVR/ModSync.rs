@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { X, ExternalLink, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { api, type BuildMod, type DraftSteps, type ModInfo, type ModOption } from "@/lib/api";
+import { api, type BuildMod, type DraftSteps, type ModInfo, type ModOption, type Unavailable } from "@/lib/api";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,11 +11,13 @@ interface BuildModDetailProps {
   mod: BuildMod;
   onClose: () => void;
   error?: string;
+  /** Mods and options that can't be selected, and why. */
+  unavailable?: Map<string, Unavailable>;
 }
 
 // Lightweight detail drawer for a build mod (no installed-file data - that's
 // only available once a mod is in the library).
-export function BuildModDetail({ mod, onClose, error }: BuildModDetailProps) {
+export function BuildModDetail({ mod, onClose, error, unavailable }: BuildModDetailProps) {
   const t = useT();
   const [info, setInfo] = useState<ModInfo | null>(null);
   // Only DeadlyStream mods have a DeadlyStream page to read details from. The
@@ -43,9 +45,14 @@ export function BuildModDetail({ mod, onClose, error }: BuildModDetailProps) {
 
   const [options, setOptions] = useState<ModOption[]>(mod.options ?? []);
   useEffect(() => { setOptions(mod.options ?? []); }, [mod]);
+  const [optionError, setOptionError] = useState<string | null>(null);
   const toggleOption = (o: ModOption, selected: boolean) => {
-    api.setOption(mod.build_key, o.guid, selected).then((r) => setOptions(r.options)).catch(() => {});
+    setOptionError(null);
+    api.setOption(mod.build_key, o.guid, selected)
+      .then((r) => setOptions(r.options))
+      .catch((e: any) => setOptionError(e?.message ?? null));
   };
+  const blocked = unavailable?.get(mod.file_id);
 
   // Steps the app drafted for this mod. Asked for again on open, because a
   // check can draft steps from the downloads after the list was loaded.
@@ -157,6 +164,16 @@ export function BuildModDetail({ mod, onClose, error }: BuildModDetailProps) {
             </section>
           )}
 
+          {/* Why this mod can't be selected, when it can't */}
+          {blocked && (
+            <section className="rounded-md border border-[hsl(var(--warning)/0.4)] bg-[hsl(var(--warning)/0.08)] p-3">
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--warning))]">
+                {t(`builds.unavailable.${blocked.category}`)}
+              </h3>
+              <p className="break-words text-sm leading-relaxed text-foreground">{blocked.reason}</p>
+            </section>
+          )}
+
           {/* Steps the app drafted, which the player checks and approves */}
           {draft && <DraftReview draft={draft} approving={approving} error={draftError} onApprove={approve} />}
 
@@ -167,7 +184,8 @@ export function BuildModDetail({ mod, onClose, error }: BuildModDetailProps) {
               <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {t("modDetail.options")}
               </h3>
-              <OptionList options={options} onToggle={toggleOption} />
+              <OptionList options={options} onToggle={toggleOption} unavailable={unavailable} />
+              {optionError && <p className="mt-2 text-sm text-destructive">{optionError}</p>}
             </section>
           )}
 
@@ -309,21 +327,43 @@ function DraftReview({ draft, approving, error, onApprove }: {
   );
 }
 
-function OptionList({ options, onToggle }: { options: ModOption[]; onToggle: (o: ModOption, selected: boolean) => void }) {
+function OptionList({ options, onToggle, unavailable }: {
+  options: ModOption[];
+  onToggle: (o: ModOption, selected: boolean) => void;
+  unavailable?: Map<string, Unavailable>;
+}) {
+  const t = useT();
   return (
     <ul className="space-y-2">
-      {options.map((o) => (
-        <li key={o.guid} className="space-y-1">
-          <label className="flex items-start gap-2 text-sm">
-            <Checkbox checked={o.selected} onCheckedChange={(v) => onToggle(o, v)} aria-label={o.name} className="mt-0.5" />
-            <span className="min-w-0">
-              <span className="text-foreground">{o.name}</span>
-              {o.description && <span className="block text-xs text-muted-foreground">{o.description}</span>}
-            </span>
-          </label>
-          {o.options.length > 0 && <div className="pl-6"><OptionList options={o.options} onToggle={onToggle} /></div>}
-        </li>
-      ))}
+      {options.map((o) => {
+        // An option that can't be installed can be turned off but not on.
+        const blocked = unavailable?.get(o.guid);
+        return (
+          <li key={o.guid} className="space-y-1">
+            <label className={`flex items-start gap-2 text-sm${blocked && !o.selected ? " opacity-60" : ""}`}>
+              <Checkbox
+                checked={o.selected}
+                disabled={!!blocked && !o.selected}
+                onCheckedChange={(v) => onToggle(o, v)}
+                aria-label={o.name}
+                className="mt-0.5"
+              />
+              <span className="min-w-0">
+                <span className="text-foreground">{o.name}</span>
+                {o.description && <span className="block text-xs text-muted-foreground">{o.description}</span>}
+                {blocked && (
+                  <span className="block break-words text-xs text-[hsl(var(--warning))]" title={blocked.reason}>
+                    {t(`builds.unavailable.${blocked.category}`)}: {blocked.reason}
+                  </span>
+                )}
+              </span>
+            </label>
+            {o.options.length > 0 && (
+              <div className="pl-6"><OptionList options={o.options} onToggle={onToggle} unavailable={unavailable} /></div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
