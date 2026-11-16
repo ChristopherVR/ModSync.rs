@@ -108,7 +108,10 @@ pub(super) fn json<T: DeserializeOwned>(path: &Path) -> Result<T> {
 }
 
 pub(super) fn hash_file(path: &Path, flag: &AtomicBool) -> Result<(String, u64)> {
-    let file = open_file(path)?;
+    hash_open_file(open_file(path)?, flag)
+}
+
+fn hash_open_file(file: File, flag: &AtomicBool) -> Result<(String, u64)> {
     let expected_length = file.metadata()?.len();
     let mut file = file.take(expected_length.saturating_add(1));
     let mut hash = Sha256::new();
@@ -130,6 +133,122 @@ pub(super) fn hash_file(path: &Path, flag: &AtomicBool) -> Result<(String, u64)>
         "Checkpoint file length changed while hashing"
     );
     Ok((format!("{:x}", hash.finalize()), count))
+}
+
+/// What a file's content was last hashed as during this process, so scans of the
+/// install folders do not read every unchanged file again for each component.
+/// A remembered hash is used only while the file's [`ContentStamp`] is unchanged,
+/// and the stamp includes a time the operating system moves on every write.
+/// Checkpoint objects are always hashed in full ([`hash_file`]).
+type RememberedHashes = std::collections::HashMap<PathBuf, (ContentStamp, String, u64)>;
+
+fn remembered_hashes() -> &'static std::sync::Mutex<RememberedHashes> {
+    static HASHES: std::sync::OnceLock<std::sync::Mutex<RememberedHashes>> =
+        std::sync::OnceLock::new();
+    HASHES.get_or_init(Default::default)
+}
+
+/// Identity, size and times of an open file. Windows: volume and file ID, size,
+/// and the change, last-write and creation times (the change time moves on any
+/// write, even when a tool keeps the old last-write time). Unix: device, inode,
+/// size, and the modification and status-change times. `None` where the file
+/// system keeps no change time, so the file is always read again.
+#[derive(Clone, PartialEq, Eq)]
+pub(super) struct ContentStamp {
+    volume: u64,
+    file: u128,
+    size: u64,
+    changed: i64,
+    written: i64,
+    created: i64,
+}
+
+#[cfg(windows)]
+fn content_stamp(file: &File) -> Option<ContentStamp> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        FILE_BASIC_INFO, FILE_ID_INFO, FILE_STANDARD_INFO, FileBasicInfo, FileIdInfo,
+        FileStandardInfo, GetFileInformationByHandleEx,
+    };
+    fn query<T>(file: &File, class: i32) -> Option<T> {
+        let mut value = std::mem::MaybeUninit::<T>::zeroed();
+        // SAFETY: the buffer is a zeroed `T` of the size passed, and `class`
+        // names the information class whose layout `T` is.
+        let ok = unsafe {
+            GetFileInformationByHandleEx(
+                file.as_raw_handle(),
+                class,
+                value.as_mut_ptr().cast(),
+                std::mem::size_of::<T>() as u32,
+            )
+        };
+        // SAFETY: the call succeeded, so Windows filled the whole structure.
+        (ok != 0).then(|| unsafe { value.assume_init() })
+    }
+    let id: FILE_ID_INFO = query(file, FileIdInfo)?;
+    let basic: FILE_BASIC_INFO = query(file, FileBasicInfo)?;
+    let standard: FILE_STANDARD_INFO = query(file, FileStandardInfo)?;
+    if basic.ChangeTime == 0 || standard.EndOfFile < 0 {
+        return None;
+    }
+    Some(ContentStamp {
+        volume: id.VolumeSerialNumber,
+        file: u128::from_le_bytes(id.FileId.Identifier),
+        size: standard.EndOfFile as u64,
+        changed: basic.ChangeTime,
+        written: basic.LastWriteTime,
+        created: basic.CreationTime,
+    })
+}
+
+#[cfg(unix)]
+fn content_stamp(file: &File) -> Option<ContentStamp> {
+    use std::os::unix::fs::MetadataExt;
+    let metadata = file.metadata().ok()?;
+    let nanos = |seconds: i64, nanos: i64| seconds.checked_mul(1_000_000_000)?.checked_add(nanos);
+    Some(ContentStamp {
+        volume: metadata.dev(),
+        file: u128::from(metadata.ino()),
+        size: metadata.size(),
+        changed: nanos(metadata.ctime(), metadata.ctime_nsec())?,
+        written: nanos(metadata.mtime(), metadata.mtime_nsec())?,
+        created: 0,
+    })
+}
+
+#[cfg(not(any(windows, unix)))]
+fn content_stamp(_file: &File) -> Option<ContentStamp> {
+    None
+}
+
+/// [`hash_file`] for files in the install folders: reuse the hash from an
+/// earlier scan in this process when the file's stamp is unchanged. A new hash
+/// is remembered only when the stamp was the same before and after reading.
+pub(super) fn hash_install_file(path: &Path, flag: &AtomicBool) -> Result<(String, u64)> {
+    cancelled(flag)?;
+    let file = open_file(path)?;
+    let Some(stamp) = content_stamp(&file) else {
+        return hash_open_file(file, flag);
+    };
+    {
+        let hashes = remembered_hashes()
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if let Some((known, sha256, size)) = hashes.get(path)
+            && *known == stamp
+        {
+            return Ok((sha256.clone(), *size));
+        }
+    }
+    let reopened = file.try_clone()?;
+    let (sha256, size) = hash_open_file(file, flag)?;
+    if content_stamp(&reopened).as_ref() == Some(&stamp) && stamp.size == size {
+        remembered_hashes()
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .insert(path.to_owned(), (stamp, sha256.clone(), size));
+    }
+    Ok((sha256, size))
 }
 
 pub(super) fn mode(metadata: &Metadata) -> Mode {
