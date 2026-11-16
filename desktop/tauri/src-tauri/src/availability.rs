@@ -32,7 +32,8 @@ pub fn inspect(
     let mut settings = Settings::new(mods, game)?;
     settings.archive = st.archive_options();
     let case_insensitive = st.lock().case_insensitive;
-    let engine = Engine::new_with_case_insensitive_pathing(settings, case_insensitive)?;
+    let engine = Engine::new_with_case_insensitive_pathing(settings, case_insensitive)?
+        .with_archive_listing_cache(st.archive_listings.clone());
     let found = engine.selection_availability(guide)?;
     // Keep the engine's direct failures, then let the engine work out again which
     // mods need them. Its own dependency results are recomputed, not copied.

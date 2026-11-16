@@ -33,7 +33,7 @@ pub mod phase;
 pub mod recovery;
 pub mod validation;
 
-pub use engine::{Engine, Event, PatcherEngine, Settings};
+pub use engine::{ArchiveListingCache, Engine, Event, PatcherEngine, Settings};
 pub use model::{Component, Guide, Instruction};
 
 mod markdown;

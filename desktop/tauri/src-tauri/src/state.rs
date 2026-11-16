@@ -60,6 +60,10 @@ pub struct Inner {
 pub struct AppState {
     inner: Mutex<Inner>,
     pub prefs: Prefs,
+    /// Archive listings from earlier checks of the mods folder, so checking
+    /// mods that haven't changed is quick (#68). Kept outside `inner` so a
+    /// long inspection never holds the app's lock.
+    pub archive_listings: std::sync::Arc<modsync::ArchiveListingCache>,
 }
 
 impl AppState {
@@ -95,6 +99,7 @@ impl AppState {
                 availability: Default::default(),
             }),
             prefs,
+            archive_listings: Default::default(),
         }
     }
 

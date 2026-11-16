@@ -476,6 +476,52 @@ fn selection_io_uncertain(error: &std::io::Error) -> bool {
     )
 }
 
+/// Archive listings that selection inspection can reuse across runs, for a
+/// caller (such as the desktop app) that inspects the same mods folder again
+/// and again. An entry is keyed by the archive's file, its name, its stamp
+/// (type, size, modified and created times) and the archive size cap, so a
+/// changed or replaced file is read again. Only definite results are kept: a
+/// listing, or an error that says the archive itself is unusable. Cancelled or
+/// uncertain inspections are never kept.
+#[derive(Default)]
+pub struct ArchiveListingCache {
+    entries: std::sync::Mutex<BTreeMap<PathBuf, CachedListing>>,
+}
+
+struct CachedListing {
+    name: PathBuf,
+    stamp: String,
+    max_expanded_bytes: Option<u64>,
+    listing: std::result::Result<Vec<archive::OriginalEntry>, String>,
+}
+
+impl ArchiveListingCache {
+    fn get(
+        &self,
+        path: &Path,
+        name: &Path,
+        stamp: &str,
+        max_expanded_bytes: Option<u64>,
+    ) -> Option<std::result::Result<Vec<archive::OriginalEntry>, String>> {
+        let entries = self.entries.lock().unwrap_or_else(|e| e.into_inner());
+        entries
+            .get(path)
+            .filter(|cached| {
+                cached.name == name
+                    && cached.stamp == stamp
+                    && cached.max_expanded_bytes == max_expanded_bytes
+            })
+            .map(|cached| cached.listing.clone())
+    }
+
+    fn insert(&self, path: &Path, listing: CachedListing) {
+        self.entries
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(path.to_owned(), listing);
+    }
+}
+
 fn selection_inspection_uncertain(error: &anyhow::Error) -> bool {
     error.chain().any(|cause| {
         if cause.is::<SelectionInspectionIncomplete>() {
@@ -563,6 +609,7 @@ pub struct Engine {
     conflicts: Option<crate::conflicts::Tracker>,
     validation_target: Option<(String, String, Option<usize>)>,
     validation_warnings: Vec<crate::validation::DryRunIssue>,
+    archive_listing_cache: Option<Arc<ArchiveListingCache>>,
 }
 
 /// C#'s Environment stage (`InstallationService.ValidateInstallationEnvironmentAsync`)
@@ -656,6 +703,13 @@ fn selected_guid_keys(guide: &Guide) -> BTreeSet<crate::guid::Identity> {
 }
 
 impl Engine {
+    /// Reuse archive listings from earlier selection inspections of the same
+    /// files (see [`ArchiveListingCache`]).
+    pub fn with_archive_listing_cache(mut self, cache: Arc<ArchiveListingCache>) -> Self {
+        self.archive_listing_cache = Some(cache);
+        self
+    }
+
     /// Opt in without adding required fields to the existing Settings contract.
     pub fn with_component_checkpoints(mut self, enabled: bool) -> Self {
         self.component_checkpoints = enabled;
@@ -775,6 +829,7 @@ impl Engine {
             conflicts: None,
             validation_target: None,
             validation_warnings: Vec::new(),
+            archive_listing_cache: None,
         };
         engine.scan()?;
         Ok(engine)
@@ -981,16 +1036,44 @@ impl Engine {
                                 let before = selection_file_stamp(path)?;
                                 // Distinguish access failures before a decoder can flatten them.
                                 drop(fs::File::open(path)?);
+                                let max_expanded_bytes = self.settings.archive.max_expanded_bytes;
+                                let cached =
+                                    self.archive_listing_cache.as_ref().and_then(|cache| {
+                                        cache.get(path, &archive_path, &before, max_expanded_bytes)
+                                    });
+                                let mut fresh = None;
                                 let inspected = (|| -> Result<BTreeSet<String>> {
                                     let destination = extraction_destination(&archive_path);
                                     self.settings.roots.check(&destination)?;
-                                    let (entries, _) = archive::list_original_with_size(
-                                        self.files[&key].1.path()?,
-                                        &archive_path,
-                                        &self.settings.archive,
-                                        &self.settings.cancelled,
-                                    )
-                                    .with_context(|| {
+                                    let listed = match cached {
+                                        Some(Ok(entries)) => Ok(entries),
+                                        Some(Err(error)) => Err(anyhow::anyhow!(error)),
+                                        None => {
+                                            let listed = archive::list_original_with_size(
+                                                path,
+                                                &archive_path,
+                                                &self.settings.archive,
+                                                &self.settings.cancelled,
+                                            )
+                                            .map(|(entries, _)| entries);
+                                            // Keep only what a later run would find again.
+                                            fresh = match &listed {
+                                                Ok(entries) => Some(Ok(entries.clone())),
+                                                Err(error)
+                                                    if !selection_inspection_uncertain(error)
+                                                        && !self
+                                                            .settings
+                                                            .cancelled
+                                                            .load(Ordering::Relaxed) =>
+                                                {
+                                                    Some(Err(format!("{error:#}")))
+                                                }
+                                                Err(_) => None,
+                                            };
+                                            listed
+                                        }
+                                    };
+                                    let entries = listed.with_context(|| {
                                         format!("Invalid archive {}", archive_path.display())
                                     })?;
                                     let mut members = BTreeSet::new();
@@ -1005,6 +1088,19 @@ impl Engine {
                                 })();
                                 if selection_file_stamp(path)? != before {
                                     return Err(SelectionInspectionIncomplete.into());
+                                }
+                                if let (Some(cache), Some(listing)) =
+                                    (&self.archive_listing_cache, fresh)
+                                {
+                                    cache.insert(
+                                        path,
+                                        CachedListing {
+                                            name: archive_path.clone(),
+                                            stamp: before.clone(),
+                                            max_expanded_bytes,
+                                            listing,
+                                        },
+                                    );
                                 }
                                 let inspected = match inspected {
                                     Err(error) if selection_inspection_uncertain(&error) => {
