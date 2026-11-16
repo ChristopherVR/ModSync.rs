@@ -182,8 +182,6 @@ modsync convert draft.json reviewed.toml --review-draft &lt;component-guid&gt;</
 </ul>
 <p>A component with unparsed gaps, conditional drafts or rejected paths cannot be marked reviewed. Fix those steps by hand first. Any later edit to a reviewed component, or to the guide text it was drafted from, needs a new review.</p>
 <p><code>--review-verified-drafts</code> only proves that the same archive drafts the same steps again. It shows the draft is reproducible, not that it installs the mod correctly, and prose drafts are never cleared this way.</p>
-<h3>Reviewed instruction sets in CI</h3>
-<p>Continuous integration should install from a reviewed instruction set pinned to a guide version, not from fresh drafts. The optional <strong>Drafter check</strong> workflow drafts the pinned guide again and lists every component where the draft differs from the reviewed set. A difference is not a failure on its own. It shows where the drafter would have needed a human. See <code>docs/drafter-check.md</code> in the repository.</p>
 </section>
 
 <section id="tools">

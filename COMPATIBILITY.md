@@ -1302,27 +1302,15 @@ The issue texts keep Rust's wording, without C#'s `ERROR: <component>:` prefix. 
 [gate-collect proof](docs/parity/fomod-gate-collect-proof/README.md), 67/67 checks (22
 fail on `d78aea2`); contract in [fomod-gate-collect.md](docs/parity/fomod-gate-collect.md).
 
-## Drafts need a review after drafting; optional drafter check, 2026-11-15 UTC
+## Drafts need a review after drafting, 2026-11-15 UTC
 
 No behavior changes. The drafter will always misread some guide prose, and every draft
 still needs an explicit review before it installs. The site now says so where players
 and guide authors read it (instruction files, safety, FAQ, desktop) and lists real
 misreadings from the KOTOR 1 Full Build: folder names guessed from ordinary words
 (`files in the Creatures`, a one-letter `f`, `the`), advice read as options, steps that
-only the mod's readme gives, and method-only entries that draft nothing.
-
-`tools/compare_drafts.py` drafts a guide with the production converter and compares
-the drafts with a reviewed instruction set for the same guide version, matching
-components by GUID, then by name. It compares each step's action, sources,
-destination, arguments and overwrite flag, and each option's name, selection and steps;
-paths compare case-insensitively with either separator and no trailing one. A
-difference is reported, and fails only with `--strict`. A reviewed set with a component
-that still needs review, or a component only one side has, always fails. The optional
-`Drafter check` workflow runs it for every set pinned in
-`.github/reviewed-instructions.json` (empty until a reviewed set is published with a
-`kolto-labs/mod-builds` version) and is controlled by repository variables; see
-`docs/drafter-check.md`. This checks the drafter against human review. It does not
-install anything, and it proves nothing about install behavior.
+only the mod's readme gives, and method-only entries that draft nothing. How to make a
+reviewed instruction set is in `docs/draft-review.md`.
 
 ## Download recommendations phrased against an option, 2026-11-14 UTC
 

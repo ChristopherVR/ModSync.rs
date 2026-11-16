@@ -1,4 +1,0 @@
-{
-  "about": "Reviewed instruction sets that CI compares fresh drafts against. Each set is pinned to one kolto-labs/mod-builds version. See docs/drafter-check.md.",
-  "sets": []
-}

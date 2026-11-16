@@ -6,7 +6,7 @@ Status: proposal, for discussion. Nothing here is implemented yet.
 
 The drafter guesses install steps from English prose. It will always be
 somewhat wrong, so every draft needs a review afterwards (see
-`docs/drafter-check.md`). It also cannot answer the question players care
+`docs/draft-review.md`). It also cannot answer the question players care
 about most: do these mods work together? File-write histories in
 `src/conflicts.rs` show that two mods write the same file, but not whether the
 second one destroys the first one's changes.
@@ -64,7 +64,7 @@ be decided exactly.
 - How to reach OdyEdit: `kolto-labs/OdyEdit`, linked from #98, returns not
   found for this contributor's account, and stage 2 depends on it.
 - Whether reviewed configurations belong in `kolto-labs/mod-builds`, pinned per
-  guide version like the reviewed instruction sets in `docs/drafter-check.md`.
+  guide version.
 - Whether the instruction format should reference a `changes.ini` shipped next
   to the guide, or carry the install list inline.
 - Which stage to start with. Stage 1 is self-contained and helps today's
