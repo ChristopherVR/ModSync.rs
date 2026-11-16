@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { FolderOpen, CheckCircle2, FileText } from "lucide-react";
-import type { BuildMod, ModStatus } from "@/lib/api";
+import type { BuildMod, ModStatus, Unavailable } from "@/lib/api";
 import { STATUS_META, ACTIVE_STATUSES } from "@/lib/status";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +32,7 @@ function Row({
   onContextMenu,
   selectable,
   selected,
+  blocked,
   onToggle,
   onManualOpen,
   onManualDone,
@@ -42,6 +43,8 @@ function Row({
   onContextMenu?: (e: MouseEvent) => void;
   selectable?: boolean;
   selected?: boolean;
+  /** Why this mod can't be selected, when it can't. */
+  blocked?: Unavailable;
   onToggle?: (fileId: string) => void;
   onManualOpen?: (mod: BuildMod) => void;
   onManualDone?: (mod: BuildMod) => void;
@@ -77,6 +80,7 @@ function Row({
           <div onClick={(e) => e.stopPropagation()} className="flex shrink-0 items-center">
             <Checkbox
               checked={!!selected}
+              disabled={!!blocked && !selected}
               onCheckedChange={() => onToggle?.(mod.file_id)}
               aria-label={mod.name}
             />
@@ -120,6 +124,13 @@ function Row({
         )}
       </div>
       {showBar && <div className="pl-11"><Progress value={rt.progress} className="h-1" /></div>}
+      {blocked && !(blocked.category === "missing_archive" && rt.status === "ERROR") && (
+        <div className="ml-11 flex items-center gap-1 text-[11px] text-[hsl(var(--warning))]">
+          <span className="truncate" title={blocked.reason}>
+            {t(`builds.unavailable.${blocked.category}`)}: {blocked.reason}
+          </span>
+        </div>
+      )}
       {rt.status === "ERROR" && (rt.error || rt.detail) && (
         <div className="ml-11 flex items-center gap-1 text-[11px] text-destructive/90">
           <span className="truncate" title={rt.error || rt.detail}>{rt.error || rt.detail}</span>
@@ -187,6 +198,7 @@ export function ModList({
   onContextMenu,
   selectable,
   selected,
+  unavailable,
   onToggle,
   onManualOpen,
   onManualDone,
@@ -197,6 +209,7 @@ export function ModList({
   onContextMenu?: (e: MouseEvent, mod: BuildMod) => void;
   selectable?: boolean;
   selected?: Set<string>;
+  unavailable?: Map<string, Unavailable>;
   onToggle?: (fileId: string) => void;
   onManualOpen?: (mod: BuildMod) => void;
   onManualDone?: (mod: BuildMod) => void;
@@ -257,6 +270,7 @@ export function ModList({
           onContextMenu={onContextMenu ? (e) => onContextMenu(e, m) : undefined}
           selectable={selectable}
           selected={selected?.has(m.file_id)}
+          blocked={unavailable?.get(m.file_id)}
           onToggle={onToggle}
           onManualOpen={onManualOpen}
           onManualDone={onManualDone}

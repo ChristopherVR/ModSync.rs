@@ -50,6 +50,11 @@ pub struct Inner {
     pub case_insensitive: bool,
     /// Fingerprint of the inputs of the last passing check.
     pub checked: Option<String>,
+    /// Per build: mods (lowercase ids) whose download failed in a check, with why.
+    pub download_failures:
+        std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>>,
+    /// Per build: the last completed check of which mods can be selected.
+    pub availability: std::collections::BTreeMap<String, modsync::selection::Availability>,
 }
 
 pub struct AppState {
@@ -86,6 +91,8 @@ impl AppState {
                 failed_roots: None,
                 case_insensitive,
                 checked: None,
+                download_failures: Default::default(),
+                availability: Default::default(),
             }),
             prefs,
         }

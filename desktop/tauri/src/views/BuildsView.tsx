@@ -4,7 +4,7 @@ import {
   FolderOpen, ScrollText, Plus, Trash2, FileUp, ShieldCheck,
   Search,
 } from "lucide-react";
-import { api, type BuildInfo, type BuildMod } from "@/lib/api";
+import { api, type BuildInfo, type BuildMod, type Unavailable } from "@/lib/api";
 import { pickDirectory, pickInstructionFile, onFilesDropped, onDragHover } from "@/lib/tauri";
 import { ModList, type ModRuntime } from "@/components/ModList";
 import { ContextMenu, type ContextMenuItem } from "@/components/ui/context-menu";
@@ -63,6 +63,9 @@ export function BuildsView(props: BuildsViewProps) {
   const [loading, setLoading] = useState(false);
   const [openMod, setOpenMod] = useState<BuildMod | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Mods that can't be selected, and why: a broken archive, a failed download,
+  // or a mod they need that can't be installed (the engine works this out).
+  const [unavailable, setUnavailable] = useState<Map<string, Unavailable>>(new Map());
   const selectionScope = useRef("");
   const [dragActive, setDragActive] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; mod: BuildMod } | null>(null);
@@ -99,23 +102,59 @@ export function BuildsView(props: BuildsViewProps) {
   const labelFor = (key: string) => builds.find((b) => b.key === key)?.label ?? key;
   const patcherName = patcherMod ? mods.find((m) => m.file_id === patcherMod)?.name : null;
 
-  // Select all mods by default, but skip already-installed ones.
+  // Select All asks the engine, which leaves out mods that can't be installed
+  // and everything that needs them. Already-installed mods stay unticked.
+  // `announce` is false for the automatic selection when a build loads.
+  const selectAll = async (announce = true) => {
+    const scope = selectionScope.current;
+    try {
+      const r = await api.selectAll(selectedBuild);
+      if (selectionScope.current !== scope) return;
+      const blocked = new Map(r.unavailable.map((u) => [u.file_id, u]));
+      setUnavailable(blocked);
+      const installed = new Set(mods.filter((m) => m.installed).map((m) => m.file_id));
+      setSelected(new Set(r.selected.filter((id) => !installed.has(id))));
+      const count = mods.filter((m) => blocked.has(m.file_id)).length;
+      if (count > 0) addLog(t("builds.selectAllUnavailable", { count }), "warning");
+      // The list already says why each greyed-out mod was left out; log only
+      // the other notes (such as mods that need the Aspyr update).
+      if (announce) {
+        for (const w of r.warnings) {
+          if (![...blocked.keys()].some((id) => w.includes(id))) addLog(w, "warning");
+        }
+      }
+    } catch (e: any) {
+      if (announce) addLog(t("builds.selectAllFailed", { error: e?.message ?? "error" }), "error");
+    }
+  };
+  const refreshAvailability = () => {
+    if (!selectedBuild) return;
+    api.availability(selectedBuild)
+      .then((r) => setUnavailable(new Map(r.unavailable.map((u) => [u.file_id, u]))))
+      .catch(() => {});
+  };
+
+  // Select all mods by default, but skip already-installed ones: at once from
+  // the list, then through the engine as soon as it has checked the mods folder.
   useEffect(() => {
     const scope = `${selectedBuild}:${mods.map(m => `${m.file_id}:${!!m.installed}`).join(",")}`;
     if (selectionScope.current === scope) return;
     selectionScope.current = scope;
+    setUnavailable(new Map());
     setSelected(new Set(mods.filter(m => !m.installed).map((m) => m.file_id)));
+    if (mods.length > 0) selectAll(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mods, selectedBuild]);
 
+  // A mod that can't be installed can be unticked but not ticked.
   const toggleMod = (fileId: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(fileId)) next.delete(fileId);
-      else next.add(fileId);
+      else if (!unavailable.has(fileId)) next.add(fileId);
       return next;
     });
   };
-  const selectAll = () => setSelected(new Set(mods.filter(m => !m.installed).map((m) => m.file_id)));
   const selectNone = () => setSelected(new Set());
 
   const selectedCount = useMemo(
@@ -250,6 +289,7 @@ export function BuildsView(props: BuildsViewProps) {
       }
     } finally {
       setChecking(false);
+      refreshAvailability();
     }
   };
   const checkPassed = checkedKey === selectionKey && !!report?.success;
@@ -360,6 +400,9 @@ export function BuildsView(props: BuildsViewProps) {
   useEffect(() => {
     if (running) return;
     api.recovery().then(setRecovery).catch(() => {});
+    // A check or install may have found broken archives or failed downloads.
+    refreshAvailability();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running]);
   const restore = async () => {
     if (!(await confirm({ message: t("builds.restoreConfirm", { path: recovery.game_path ?? "" }), confirmLabel: t("builds.restore") }))) return;
@@ -501,7 +544,7 @@ export function BuildsView(props: BuildsViewProps) {
             {t("builds.selectedCount", { selected: selectedCount, total: mods.length })}
           </span>
           {!running && <>
-            <Button variant="ghost" size="sm" onClick={selectAll}>{t("builds.selectAll")}</Button>
+            <Button variant="ghost" size="sm" onClick={() => selectAll()}>{t("builds.selectAll")}</Button>
             <Button variant="ghost" size="sm" onClick={selectNone}>{t("builds.selectNone")}</Button>
           </>}
         </div>
@@ -536,6 +579,7 @@ export function BuildsView(props: BuildsViewProps) {
             onContextMenu={(e: MouseEvent, mod) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, mod }); }}
             selectable={!running}
             selected={selected}
+            unavailable={unavailable}
             onToggle={toggleMod}
             onManualOpen={openManualFolder}
             onManualDone={markDone}
@@ -587,7 +631,7 @@ export function BuildsView(props: BuildsViewProps) {
         )}
         {!running && <span className="hidden text-xs text-muted-foreground xl:block">{t("builds.dropHint")}</span>}
         {!running && errors > 0 && (
-          <Button variant="outline" onClick={() => control("retry").then(startInstall)}>
+          <Button variant="outline" onClick={() => control("retry").then(() => { refreshAvailability(); return startInstall(); })}>
             <RotateCcw /> {t("builds.retry")}
           </Button>
         )}

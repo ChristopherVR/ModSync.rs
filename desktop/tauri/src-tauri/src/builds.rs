@@ -337,6 +337,12 @@ pub fn load(app: &AppHandle, key: &str, r: &Request) -> Reply {
         .find(|b| b.key == key)
         .ok_or_else(|| fail(404, format!("There is no build called {key}")))?;
     let refresh = r.q("refresh") == "true";
+    if refresh {
+        // Refresh list starts over: downloads that failed get another try.
+        let mut inner = st.lock();
+        inner.download_failures.remove(key);
+        inner.availability.remove(key);
+    }
     let (path, from_cache) =
         fetch(&st, &build, refresh).map_err(|e| fail(502, format!("{e:#}")))?;
     let mut guide = if build.custom {

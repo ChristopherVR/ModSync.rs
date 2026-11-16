@@ -63,6 +63,19 @@ export interface BuildMod {
   restrictions?: string[];
 }
 
+/** A mod or option that can't be selected, and why (from the engine). */
+export interface Unavailable {
+  file_id: string;
+  category:
+    | "missing_archive"
+    | "invalid_archive"
+    | "invalid_instruction"
+    | "missing_dependency"
+    | "unavailable_dependency"
+    | "unavailable_ancestor";
+  reason: string;
+}
+
 /** Install steps the app drafted, which the player must check and approve. */
 export interface DraftSteps {
   needs_review: boolean;
@@ -297,6 +310,14 @@ export const api = {
                  mods: BuildMod[] }>(
       `/api/builds/${key}/load${qs ? `?${qs}` : ""}`, { method: "POST" });
   },
+  /** Select All through the engine: every mod with what it needs, minus mods
+   *  that can't be installed and everything that needs them. */
+  selectAll: (key: string) =>
+    req<{ selected: string[]; inspected: boolean; unavailable: Unavailable[]; warnings: string[] }>(
+      `/api/builds/${key}/select-all`, { method: "POST", body: JSON.stringify({}) }),
+  /** The last check of which mods can't be selected. */
+  availability: (key: string) =>
+    req<{ unavailable: Unavailable[] }>(`/api/builds/${key}/availability`),
   startInstall: (
     build_key: string,
     game_path?: string,

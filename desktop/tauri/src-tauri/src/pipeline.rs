@@ -37,7 +37,10 @@ pub fn control(app: &AppHandle, action: &str) -> Reply {
             }
             Ok(json!({"ok": true, "action": action}))
         }
-        "retry" => Ok(json!({"ok": true, "action": action})),
+        "retry" => {
+            crate::availability::forget_failed_downloads(app);
+            Ok(json!({"ok": true, "action": action}))
+        }
         "pause" => {
             if state(app).set_paused(true) {
                 log(
@@ -413,7 +416,7 @@ fn run(app: &AppHandle, job: Job, tally: &mut Tally) -> Result<()> {
         }
     }
     // 2. Files.
-    let skipped = download(
+    let (skipped, downloads) = download(
         app,
         &mut guide,
         &mods,
@@ -422,6 +425,16 @@ fn run(app: &AppHandle, job: Job, tally: &mut Tally) -> Result<()> {
         (&cancelled, &paused),
         tally,
     )?;
+    let failed = {
+        let st = state(app);
+        let mut inner = st.lock();
+        let failed = inner.download_failures.entry(key.clone()).or_default();
+        for id in &downloads.fetched {
+            failed.remove(id);
+        }
+        failed.extend(downloads.failed);
+        failed.clone()
+    };
     for id in skipped {
         let outcome = selection::apply(
             &mut guide.components,
@@ -448,6 +461,34 @@ fn run(app: &AppHandle, job: Job, tally: &mut Tally) -> Result<()> {
     if cancelled.load(Ordering::Acquire) {
         log(app, "Install stopped.", "warning");
         return Ok(());
+    }
+    // Mods whose archive is broken or whose download failed can't be installed,
+    // and neither can anything that needs them (the engine's selection graph).
+    match crate::availability::inspect(app, &guide, &game, &mods, &failed) {
+        Ok(availability) => {
+            let outcome = availability.enforce(&mut guide.components);
+            for id in &outcome.deselected {
+                let reason = availability.reason(id).unwrap_or_default().to_owned();
+                status(app, id, "SKIPPED", "Skipped", &reason);
+                log(
+                    app,
+                    format!("Skipping {}: {reason}", name_of(&guide, id)),
+                    "warning",
+                );
+            }
+            state(app)
+                .lock()
+                .availability
+                .insert(key.clone(), availability);
+            emit(app, json!({"type": "availability", "build_key": key}));
+        }
+        // An incomplete check never changes the selection; the engine's own
+        // checks before installing still stop on a broken archive.
+        Err(error) => log(
+            app,
+            format!("Couldn't check the downloaded archives: {error:#}"),
+            "warning",
+        ),
     }
     if !guide.components.iter().any(|c| c.is_selected) {
         return Ok(());
@@ -746,10 +787,11 @@ fn download(
     // The run's stop and pause flags.
     (cancelled, paused): (&Arc<AtomicBool>, &Arc<AtomicBool>),
     tally: &mut Tally,
-) -> Result<Vec<String>> {
+) -> Result<(Vec<String>, Downloads)> {
     let candidates = selection::download_candidates(&guide.components, Scope::All);
+    let mut downloads = Downloads::default();
     if candidates.is_empty() {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), downloads));
     }
     let options = orch::PlanOptions {
         source_dir: mods.to_path_buf(),
@@ -824,17 +866,21 @@ fn download(
                 }
             }
             orch::TargetStatus::Failed => {
-                status(
-                    app,
-                    &outcome.component_guid,
-                    "ERROR",
-                    "Error",
-                    outcome.error.as_deref().unwrap_or("The download failed."),
-                );
+                let reason = outcome.error.as_deref().unwrap_or("The download failed.");
+                status(app, &outcome.component_guid, "ERROR", "Error", reason);
                 tally.errors += 1;
                 skipped.push(outcome.component_guid.clone());
+                downloads.failed.insert(
+                    outcome.component_guid.to_ascii_lowercase(),
+                    reason.to_owned(),
+                );
             }
-            _ => {}
+            orch::TargetStatus::Completed => {
+                downloads
+                    .fetched
+                    .push(outcome.component_guid.to_ascii_lowercase());
+            }
+            orch::TargetStatus::Cancelled => {}
         }
     }
     if !report.cancelled {
@@ -845,5 +891,14 @@ fn download(
     crate::nxm::waiting(app, nexus_clicks);
     skipped.sort();
     skipped.dedup();
-    Ok(skipped)
+    Ok((skipped, downloads))
+}
+
+/// What a run's downloads did, for working out which mods can be selected.
+#[derive(Default)]
+struct Downloads {
+    /// Mods (lowercase ids) whose download failed, with why.
+    failed: BTreeMap<String, String>,
+    /// Mods (lowercase ids) whose download finished or was already there.
+    fetched: Vec<String>,
 }

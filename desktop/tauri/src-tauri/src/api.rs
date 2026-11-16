@@ -56,17 +56,21 @@ pub async fn api_request(
         // app's own library and conflicts requests queue for it one at a time (after an
         // install both refresh at once), and a read that still finds the folder in use,
         // by an install or another program, waits a while before failing.
-        let _queued = matches!(
-            request.segments.get(1).map(String::as_str),
-            Some("library" | "conflicts")
-        )
+        // Select All inspects the mods folder through an engine, which takes the
+        // same lock, so it queues and waits the same way.
+        let select_all = request.segments.last().is_some_and(|s| s == "select-all");
+        let _queued = (select_all
+            || matches!(
+                request.segments.get(1).map(String::as_str),
+                Some("library" | "conflicts")
+            ))
         .then(|| {
             GAME_FOLDER
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
         });
         let mut reply = run();
-        if request.method == "GET" {
+        if request.method == "GET" || select_all {
             for _ in 0..GAME_BUSY_RETRIES {
                 if !reply.as_ref().err().is_some_and(game_folder_busy) {
                     break;
@@ -128,6 +132,12 @@ fn route(app: &AppHandle, r: &Request) -> Reply {
         (["api", "builds", "local"], "POST") => crate::builds::add_local(app, r),
         (["api", "builds", key], "DELETE") => crate::builds::delete(app, key),
         (["api", "builds", key, "load"], _) => crate::builds::load(app, key, r),
+        (["api", "builds", key, "availability"], "GET") => {
+            Ok(json!({"unavailable": crate::availability::last(app, key)}))
+        }
+        (["api", "builds", key, "select-all"], _) if post => {
+            crate::availability::select_all(app, key, r)
+        }
         (["api", "builds", key, "option"], _) if post => crate::builds::set_option(app, key, r),
         (["api", "builds", key, "draft", guid], "GET") => crate::drafts::show(app, key, guid),
         (["api", "builds", key, "draft", guid], "POST") => crate::drafts::approve(app, key, guid),
