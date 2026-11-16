@@ -4875,3 +4875,38 @@ the available mod selects and passes remaining-phase validation. Content hashes
 prove the base Copy is the only game/mod change. No remaining install, external
 program, download, full-guide or patcher acceptance is claimed. See the native
 widescreen evidence in the selection-availability replay documentation.
+
+
+### OdyPatcher source boundary and explicit executable selection
+
+OdyPatcher remains a Git dependency on `kolto-labs/OdyPatcher`, pinned in
+`Cargo.toml` and `Cargo.lock` to `9b9ee8d1d25e2e97c87df4521a13965ced1e0b3f`.
+ModSync owns the shared engine adapter, payload preparation and validation
+projection. The patcher implementation is maintained in OdyPatcher's repository
+and linked into the self-contained executable.
+
+Fresh settings use that linked library. Engine construction bypasses executable
+discovery for OdyPatcher with no configured path, including executables on PATH
+or in packaged resources. Saved preferences are retained. Empty or whitespace-only
+legacy executable settings now follow the same default as a cleared desktop
+field. An explicit `--patcher` still selects an external executable and requires
+process trust. An unavailable configured path now includes the requested path
+and underlying filesystem cause in its diagnostic.
+
+The CLI help, README and published documentation describe the linked default,
+external selection and process permission consistently. Production CI is configured
+to build and lint both feature configurations. It sets no runtime patcher override.
+Its `--no-default-features` flag disables desktop support. Runtime checks that supply
+`--patcher-engine` or `--patcher` select an explicit override.
+
+Controlled Linux production CLI checks exercised fresh settings, empty and
+whitespace-only legacy settings, explicit and saved external executables,
+CLI precedence, namespace and named-INI selection, executable aliases, PATH and
+packaged-resource conflicts, and validation without external execution. The
+external executable was built from the exact pinned OdyPatcher source, including
+a path containing spaces. Missing paths, directories, non-executable files,
+invalid executable format, denied process trust, nonzero child exit and absent
+fresh install logs were rejected. Source payload hashes remained intact.
+HoloPatcher/KPatcher argument adapters were exercised with the compatible pinned
+OdyPatcher CLI. Commands, output excerpts and production-check results accompany
+[PR #108](https://github.com/kolto-labs/ModSync.rs/pull/108).
