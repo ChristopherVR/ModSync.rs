@@ -57,7 +57,7 @@ jobs:
         run: |
           sudo apt-get install -y --no-install-recommends xvfb
           export MODSYNC_SETTINGS_DIR="$RUNNER_TEMP/settings"
-          timeout 20 xvfb-run -a ./modsync-desktop-tauri; code=$?
+          code=0; timeout 20 xvfb-run -a ./modsync-desktop-tauri || code=$?
           echo "exit $code (124 means it was still running after 20 s)"
           test "$code" = 124
       - name: Starts without crashing
