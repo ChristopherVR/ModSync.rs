@@ -437,7 +437,7 @@ impl Store {
                 let (sha256, size) = if stage_new_objects {
                     self.stage_hashed_object(entry.path(), metadata.len(), flag)?
                 } else {
-                    hash_file(entry.path(), flag)?
+                    hash_install_file(entry.path(), flag)?
                 };
                 ensure!(
                     size == metadata.len(),
